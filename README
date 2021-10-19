@@ -1,0 +1,141 @@
+Simple Homomorphic Encryption (SHE)
+
+Basics
+
+Homomorphic Encryption allows you to send encrypted data to a third party
+and that third party can do computations on the data and return it to you
+will all the computations happenning on the encrypted data itself. This
+library uses the helib's binArithmetic library to implement as full a C++
+semantic as possible. Helib uses the BGV homomorphic encryption system. This
+system can do primitive operations of bit level addition and bit level
+multiplication. Each operation adds some noise to the result, so only
+a limitted number of operations can be done before the noise overwhelms our
+actual data. Part of BGV is a way to set the noise level to a lower value
+by decrypting our the encrypted value homophorphically. The details aren't
+important for the use of SHE, but this affects the performance of any
+calculations you do.
+
+The goals of this library.
+
+Helib as been available for about 10 years, and is already used in systems
+to provide homomorphic services. It is the "assembler" level of doing
+homomorphic encryption, with a few higher level features like binArithmetic.
+The latter provides basic functionality like shift, bitwise operations,
+addition, subraction, and multiplication. Using helib requires finding
+correct parameters, and initializing crypto systems with those parameters.
+
+The goals of this library is to reduce the complexity of initializing your
+the system and provide C++ like access to underlying homomorphic operations.
+
+Using SHE
+
+KeyGeneration and management.
+
+To use SHE, you first need to get a keypair. This keyPair is generated using
+the SHEGenerate_KeyPair(), which takes a type, a security level, and an
+operation level. The operation level sets how many operations you can do before
+you need to bootstrap again. The higher the operation level, the slower each
+operation will be for a given security level. Security level is the strength
+of the system in bits. Several levels are provided that are not really secure,
+but allow you to experiment before cranking up to a higher security level.
+
+One you have your keyPair, you can save them to a file, or stream using the
+C++ << operators. In a real system, you will want to send the publickey
+along with your encrypted data, so that they server can operate on your
+encrypted data.
+
+Integer operations.
+
+Encrypted data is stored in various SHEInt classes: SHEInt8, SHEInt16, 
+SHEInt32, SHEInt64, SHEUInt8, SHEUInt16, SHEUInt32, SHEUInt64and SHEBool. These
+correspond the the C++ types int8_t, int16_t, int32_t, int64_t, uint8_t,
+uint16_t, uint32_t, uint64_t, and bool respectively
+
+These classes are all subclasses of SHEInt, so you can implement generic
+integer libraries that work on any of these native types by using SHEInt.
+All SHEInt constructs must have a publicKey, either explicitly, or implicity.
+Simply declare a SHEInt variable, and start using it.
+
+SHEInt16 a(publicKey);
+SHEInt16 b(publicKey);
+SHEInt16 r(publicKey);
+
+a = 5;
+b = -7;
+
+r = a*a + b;
+
+All the basic integer operators are supported except  the ? operator (a?b:c).
+Instead you can use a.select(b:c), or select(a,b,c);
+
+Logical and comparison operations return SHEInt and not bool, and there is
+no cast from SHEInt to bool. This is because the results of these operations
+are encrypted, so they cannot be examined directly in your program. This means
+they cannont be used in a if, or as an exit to a loop condition.
+
+  if (a == b)  // This will not work.
+
+This is because the result of the comparison is itself encrypted. So you can't
+query the result (unless you decrypt it). What you can do is use the result
+to select a value:
+  r = (a==b).select(10, 5);
+
+r will get the selected encrypted value (either 10 or 5) depending on the state
+of the comparision.
+
+To implement a while loop with an encrypted index, you need to instead use a
+for loop to loop over all the possibilities and stop updating your variables
+when the loop condition ends:
+
+   // unencrypted a and b:
+   while (a < b) {
+    a += 1;
+    b >> 1;
+  }
+
+  // encrypted a && b, assumes a is not negative...
+  SHEBool break(publicKey, false);
+  for (int i=0; i < b.getSize(); i++) {
+    break= break || (a < b);
+    a = break.select(a, a+1);
+    b = break.select(b, b>>1);
+  }
+
+Note: it's important to know the actual maximum bound of the while loop, if,
+in the above example, a is -b.getSize(), then this loop won't execute as
+long as the loop above. 
+
+SHEVector operations.
+
+SHEVector allows you to store a vector or array of encrypted values and access
+that array with an encrypted index. In all other ways it functions as a normal std::vector. When using an encrypted index, you can't assign to it, but you can
+use the assign method:
+
+    SHEInt16 model(publicKey);
+    SHEVector<SHEInt16> array(model,1);
+    SHEInt16 r(publicKey,5);
+    SHEInt16 r2(publicKey);
+    SHEInt8 index(publicKey, 3);
+
+    array[1] = SHEInt16(publicKey, 5); // this works
+    array[3] = r;
+    r2 = array[index];                // r2 will get an encrypted value of r
+    array[index] = SHEInt16(publicKey, 7) // this will not work.
+    array.assign(index,SHEInt16(publicKey, 7)) // use this instead
+
+SHEVectors can store and index any value that has a
+<type>select(const SHEInt &, const <type>&, const <type>&); function.
+Indexes are type SHEInt.
+
+SHEFp operations
+
+Floating point is still under construction
+
+SHEString operations
+
+String operations are still under construction
+   
+
+Performance and bootstrapping.
+
+ 
