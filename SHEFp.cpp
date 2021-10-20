@@ -12,10 +12,6 @@
 #include <helib/intraSlot.h>
 #include "helibio.h"
 
-#define SHEBPB 8
-#define SHEMAX(a,b) ((a)>(b)?(a):(b))
-#define SHEMIN(a,b) ((a)<(b)?(a):(b))
-
 #ifdef DEBUG
 SHEPrivateKey *SHEFp::debugPrivKey = nullptr;
 #endif
@@ -51,7 +47,7 @@ static inline uint64_t mkNanMantissa(int size, bool signal)
 }
 
 
-static const int SHE_UINT64_SHIFT=sizeof(uint64_t)*SHEBPB-1;
+static const int SHE_UINT64_SHIFT=sizeof(uint64_t)*CHAR_BIT-1;
 // two functions to crack the mantissa and exponent from a native
 // double. Internally we use IEEE format except we keep the explicit
 // one in the mantissa for convinience. We use the native system to convert
@@ -61,13 +57,13 @@ static const int SHE_UINT64_SHIFT=sizeof(uint64_t)*SHEBPB-1;
 // the latter by using shemaxfloat_t for mult. The former will need
 // to add arbitrary length ints to SHEInt constructor and decrypt (SHEInt
 // can already handle arbitrary length internally). This is not a priority
-// since such large floating point numbers (or integers for that matter) 
+// since such large floating point numbers (or integers for that matter)
 // are not yet practical peformancewise.
 static uint64_t i_mantissa(shemaxfloat_t d, uint64_t mantissaSize) {
     int exp;
     // clamp the size to uint64_t
-    if (mantissaSize > sizeof(uint64_t)*SHEBPB) {
-      mantissaSize = sizeof(uint64_t)*SHEBPB;
+    if (mantissaSize > sizeof(uint64_t)*CHAR_BIT) {
+      mantissaSize = sizeof(uint64_t)*CHAR_BIT;
     }
     if (std::isnan(d)) { return mkNanMantissa(mantissaSize, issignaling(d)); }
     if (std::isinf(d)) { return 0; }
@@ -86,7 +82,7 @@ static uint64_t i_exp(shemaxfloat_t d, uint64_t expSize) {
 }
 
 SHEFp::SHEFp(const SHEPublicKey &pubKey, shemaxfloat_t myFloat,
-               int expSize, int mantissaSize, const char *label) : 
+               int expSize, int mantissaSize, const char *label) :
               sign(pubKey, std::signbit(myFloat), 1, true),
               exp(pubKey, i_exp(myFloat, expSize), expSize, true),
               mantissa(pubKey, i_mantissa(myFloat, mantissaSize),
@@ -95,12 +91,12 @@ SHEFp::SHEFp(const SHEPublicKey &pubKey, shemaxfloat_t myFloat,
   if (label) labelHash[this]=label;
   // if our mantissa was too big for uint64, we need to shift the result
   // back into place
-  if (mantissaSize > sizeof(uint64_t)*SHEBPB) {
-    mantissa <<= mantissaSize - sizeof(uint64_t)*SHEBPB;
+  if (mantissaSize > sizeof(uint64_t)*CHAR_BIT) {
+    mantissa <<= mantissaSize - sizeof(uint64_t)*CHAR_BIT;
   }
 }
 
-SHEFp::SHEFp(const SHEFp &model, shemaxfloat_t myFloat,const char *label) 
+SHEFp::SHEFp(const SHEFp &model, shemaxfloat_t myFloat,const char *label)
                : sign(model.sign, std::signbit(myFloat)),
                  exp(model.exp, i_exp(myFloat,model.exp.getSize())),
                  mantissa(model.mantissa,
@@ -109,8 +105,8 @@ SHEFp::SHEFp(const SHEFp &model, shemaxfloat_t myFloat,const char *label)
   if (label) labelHash[this]=label;
   // if our mantissa was too big for uint64, we need to shift the result
   // back into place
-  if (model.mantissa.getSize() > sizeof(uint64_t)*SHEBPB) {
-    mantissa <<= model.mantissa.getSize() - sizeof(uint64_t)*SHEBPB;
+  if (model.mantissa.getSize() > sizeof(uint64_t)*CHAR_BIT) {
+    mantissa <<= model.mantissa.getSize() - sizeof(uint64_t)*CHAR_BIT;
   }
 }
 
@@ -135,8 +131,8 @@ SHEFp::SHEFp(const SHEPublicKey &pubKey, std::istream& str,
 // This needs work. reset of SHEFp is not going to be as
 // cheap as reset on int because we will have to do special
 // processing on overflow and underflow results
-void SHEFp::reset(int expSize, int mantissaSize) 
-{ 
+void SHEFp::reset(int expSize, int mantissaSize)
+{
   // it might be better to store exp as a 2's complement number
   // and then truncate would just work (except overflow and under
   // flow).
@@ -161,10 +157,10 @@ void SHEFp::reset(int expSize, int mantissaSize)
 // we can do, use it to decide if we need to reCrypt.
 bool SHEFp::needRecrypt(long level) const
 {
-  return sign.needRecrypt() || exp.needRecrypt(level) 
+  return sign.needRecrypt() || exp.needRecrypt(level)
          || mantissa.needRecrypt(level);
 }
-  
+
 
 bool SHEFp::needRecrypt(const SHEFp &a, long level) const
 {
@@ -234,7 +230,7 @@ void SHEFp::denormalize(const SHEInt &targetExp)
 ///////////////////////////////////////////////////////////////////////////
 //                      input/output operators.                           /
 ///////////////////////////////////////////////////////////////////////////
-std::ostream& operator<<(std::ostream& str, const SHEFp& a) 
+std::ostream& operator<<(std::ostream& str, const SHEFp& a)
 {
   a.writeToJSON(str);
   return str;
@@ -249,8 +245,8 @@ std::istream& operator>>(std::istream& str, SHEFp& a)
 std::ostream &operator<<(std::ostream& str, const SHEFpSummary &summary)
 {
   long level = summary.shefp.bitCapacity();
-  str << "SHEFp(" <<  summary.shefp.getLabel() << "," 
-      << summary.shefp.getExp().getSize() << "," 
+  str << "SHEFp(" <<  summary.shefp.getLabel() << ","
+      << summary.shefp.getExp().getSize() << ","
       << summary.shefp.getMantissa().getSize()
       << "," ;
   if (level == LONG_MAX) {
@@ -318,7 +314,7 @@ helib::JsonWrapper SHEFp::writeJSON(void) const
   return helib::executeRedirectJsonError<helib::JsonWrapper>(body);
 }
 
-SHEFp SHEFp::readFrom(std::istream& str, const SHEPublicKey &pubKey) 
+SHEFp SHEFp::readFrom(std::istream& str, const SHEPublicKey &pubKey)
 {
   SHEFp a(pubKey, 0, 1, true);
   a.read(str);
@@ -343,7 +339,7 @@ SHEFp SHEFp::readFromJSON(const helib::JsonWrapper& j,
   return a;
 }
 
-void SHEFp::read(std::istream& str) 
+void SHEFp::read(std::istream& str)
 {
   long magic;
 
@@ -385,7 +381,8 @@ shemaxfloat_t SHEFp::decryptRaw(const SHEPrivateKey &privKey) const
   uint64_t isign = sign.decryptRaw(privKey);
   uint64_t iexp = exp.decryptRaw(privKey);
   uint64_t imantissa = mantissa.decryptRaw(privKey);
-  int mantissaSize = SHEMIN(mantissa.getSize(), sizeof(uint64_t)*SHEBPB);
+  int mantissaSize = std::min(mantissa.getSize(),
+                              (int)sizeof(uint64_t)*CHAR_BIT);
   shemaxfloat_t result;
 
   if (iexp == mkSpecialExp(exp.getSize())) {
@@ -394,7 +391,7 @@ shemaxfloat_t SHEFp::decryptRaw(const SHEPrivateKey &privKey) const
     }
     if (imantissa & mkNanSignal(mantissa.getSize())) {
       return isign ? -SHEFP_SNAN : SHEFP_SNAN;
-    } 
+    }
     return isign ? -NAN : NAN;
   }
   result = (shemaxfloat_t) imantissa;
@@ -430,7 +427,7 @@ SHEFp SHEFp::abs(void) const
 // basic addition, subtraction and negation operators. These functions
 // return the values of the same size as the biggest operand
 SHEFp SHEFp::operator-(void) const {
-  SHEFp copy(*this); 
+  SHEFp copy(*this);
   copy.sign ^= 1;
   return copy;
 }
@@ -519,8 +516,8 @@ SHEFp &SHEFp::operator-=(shemaxfloat_t a) {
 SHEFp SHEFp::operator*(const SHEFp &a) const {
   SHEFp result(*this);
   SHEInt mantissa(result.mantissa);
-  int expSize = SHEMAX(exp.getSize(), a.exp.getSize());
-  int expMinSize = SHEMIN(exp.getSize(), a.exp.getSize());
+  int expSize = std::max(exp.getSize(), a.exp.getSize());
+  int expMinSize = std::min(exp.getSize(), a.exp.getSize());
 
   // handle the sign
   result.sign ^= a.sign;
@@ -544,7 +541,7 @@ SHEFp SHEFp::operator*(const SHEFp &a) const {
 
   // handle the mantissa
   mantissa.reset(result.mantissa.getSize()+a.mantissa.getSize(), true);
-  mantissa *= a.mantissa; 
+  mantissa *= a.mantissa;
   mantissa >>= a.mantissa.getSize();
   mantissa.reset(result.mantissa.getSize(), true);
   mantissa = underflow.select(mantissa >> underflowAmount, mantissa);
@@ -630,7 +627,7 @@ SHEFp &SHEFp::operator--(void)
   return *this;
 }
 
-SHEFp SHEFp::operator++(int dummy) 
+SHEFp SHEFp::operator++(int dummy)
 {
   SHEFp result(*this);
   *this += 1.0;
@@ -686,12 +683,12 @@ SHEFp select(const SHEInt &sel, const SHEFp &a_true, const SHEFp &a_false)
   SHEFp r_false(a_false);
   int trueMantissaSize=a_true.mantissa.getSize();
   int falseMantissaSize=a_false.mantissa.getSize();
-  int mantissaSize = SHEMAX(trueMantissaSize,falseMantissaSize);
+  int mantissaSize = std::max(trueMantissaSize,falseMantissaSize);
   r_true.mantissa.reset(mantissaSize, true);
   r_true.mantissa <<= mantissaSize - trueMantissaSize;
   r_false.mantissa.reset(mantissaSize, true);
   r_false.mantissa <<= mantissaSize - falseMantissaSize;
-  int expSize = SHEMAX(r_true.exp.getSize(),r_false.exp.getSize());
+  int expSize = std::max(r_true.exp.getSize(),r_false.exp.getSize());
   r_true.exp.reset(expSize,true);
   r_false.exp.reset(expSize,true);
   // handle Nan and Inf
@@ -816,7 +813,7 @@ SHEBool SHEFp::operator<=(const SHEFp &a) const
 SHEBool SHEFp::operator!=(const SHEFp &a) const
 {
   SHEBool isEitherNan = (isNan() || a.isNan());
-  
+
   return isEitherNan || (sign != a.sign) ||
          (exp != a.exp) || (mantissa != a.mantissa);
 }
@@ -824,7 +821,7 @@ SHEBool SHEFp::operator!=(const SHEFp &a) const
 SHEBool SHEFp::operator==(const SHEFp &a) const
 {
   SHEBool notNan = !(isNan() || a.isNan());
-  return notNan && (sign == a.sign)&& 
+  return notNan && (sign == a.sign)&&
          (exp == a.exp) && (mantissa == a.mantissa);
 }
 

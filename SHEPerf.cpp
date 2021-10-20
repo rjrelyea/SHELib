@@ -219,7 +219,7 @@ int main(int argc, char **argv)
    for (int i=0 ; i < sizeof(security_level)/sizeof(int) ; i++) {
      SHEPublicKey pubkey;
      SHEPrivateKey privkey;
-     std::cout << "----------------- security level " 
+     std::cout << "----------------- security level "
                << security_level[i] << " ------------------" << std::endl;
      timer.start();
      try {
@@ -234,7 +234,7 @@ int main(int argc, char **argv)
        continue;
      }
      timer.stop();
-     std::cout << " keygen time (" << security_level[i] << "): " 
+     std::cout << " keygen time (" << security_level[i] << "): "
                << (PrintTime) timer.elapsedMilliseconds() << std::endl;
      launch_integer_tests(pubkey, privkey);
    }

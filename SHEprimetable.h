@@ -1,5 +1,5 @@
 // Were taken from the nss mpi code: primes.c.
-// These tables of primes wwere generated using the 'sieve' program 
+// These tables of primes wwere generated using the 'sieve' program
 // (sieve.c) and converted to this format with 'ptab.pl'.
 // primes.c has the following license:
 // This Source Code Form is subject to the terms of the Mozilla Public

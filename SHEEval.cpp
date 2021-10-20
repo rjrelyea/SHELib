@@ -178,7 +178,7 @@ int main(int argc, char **argv)
     SHEPublicKey pubkey;
     SHEPrivateKey privkey;
     bool fail = false;
-    std::cout << "-------------------------- security level " 
+    std::cout << "-------------------------- security level "
               << security_level[i] << " ---------------------------" << std::endl;
     timer.start();
     try {
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
       continue;
     }
     timer.stop();
-    std::cout << " keygen time (" << security_level[i] << "): " 
+    std::cout << " keygen time (" << security_level[i] << "): "
               << (PrintTime) timer.elapsedMilliseconds() << std::endl;
     if (fail) continue;
     launch_integer_tests(pubkey, privkey);

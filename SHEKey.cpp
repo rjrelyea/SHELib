@@ -24,7 +24,7 @@ void SHEGenerate_BinaryKey(SHEPrivateKey &privKey, SHEPublicKey &pubKey,
   } else if (SHEPublicKey::getLog()) {
     log = SHEPublicKey::getLog();
   }
-  helib::Context *context = 
+  helib::Context *context =
                     SHEContext::GetContext(SHEContextBinary, securityLevel);
 
   helib::assertNeq(context, (helib::Context *)nullptr,
@@ -75,14 +75,14 @@ unsigned char *SHEPublicKey::flatten(int &size, bool ascii) const
     writeTo(ss);
   }
   std::string s=ss.str();
-  size=s.length(); 
+  size=s.length();
   return (unsigned char *)s.data();
 }
 
 
 void SHEPublicKey::writeTo(std::ostream& str) const
 {
-  helib::assertFalse(empty, "attempt to use an empty SHEPublicKey");  
+  helib::assertFalse(empty, "attempt to use an empty SHEPublicKey");
   if (log) (*log) << "outputting SHEPublicKey" << std::endl;
   long typeValue = SHEContext::GetContextTypeValue(type);
   write_raw_int(str, SHEPublicKeyMagic); // magic to say we're a SHEPublicKey
@@ -94,7 +94,7 @@ void SHEPublicKey::writeTo(std::ostream& str) const
 
 void SHEPublicKey::writeToJSON(std::ostream& str) const
 {
-  helib::assertFalse(empty, "attempt to use an empty SHEPublicKey");  
+  helib::assertFalse(empty, "attempt to use an empty SHEPublicKey");
   if (log) (*log) << "outputting JSON SHEPublicKey" << std::endl;
   helib::executeRedirectJsonError<void>([&]() { str << writeToJSON(); });
   if (log) (*log) << "...done" << std::endl;
@@ -102,7 +102,7 @@ void SHEPublicKey::writeToJSON(std::ostream& str) const
 
 helib::JsonWrapper SHEPublicKey::writeToJSON(void) const
 {
-  helib::assertFalse(empty, "attempt to use an empty SHEPublicKey");  
+  helib::assertFalse(empty, "attempt to use an empty SHEPublicKey");
   auto body = [this]() {
     json j = {{"contextType", this->type },
               {"securityLevel", this->contextSecurityLevel },
@@ -122,7 +122,7 @@ void SHEPublicKey::readFrom(std::istream& str)
   type = SHEContext::GetContextType(typeValue);
   contextSecurityLevel = read_raw_int(str);
   helib::Context *context = SHEContext::GetContext(type, contextSecurityLevel);
-  helib::assertNeq<helib::IOError>(context, (helib::Context *)nullptr, 
+  helib::assertNeq<helib::IOError>(context, (helib::Context *)nullptr,
                                   "Can't find context by type & level");
   publicKey = new helib::PubKey(helib::PubKey::readFrom(str, *context));
   empty = false;
@@ -147,7 +147,7 @@ void SHEPublicKey::readFromJSON(const helib::JsonWrapper &jw)
 
     this->type = j.at("contextType");
     this->contextSecurityLevel = j.at("securityLevel");
-    helib::Context *context = SHEContext::GetContext(this->type, 
+    helib::Context *context = SHEContext::GetContext(this->type,
                                                      this->contextSecurityLevel);
     this->publicKey = new helib::PubKey(*context);
     this->publicKey->readJSON(helib::wrap(j.at("publicKey")));
@@ -179,14 +179,14 @@ unsigned char *SHEPrivateKey::flatten(int &size, bool ascii) const
     writeTo(ss);
   }
   std::string s=ss.str();
-  size=s.length(); 
+  size=s.length();
   return (unsigned char *)s.data();
 }
 
 
 void SHEPrivateKey::writeTo(std::ostream& str) const
 {
-  helib::assertFalse(empty, "attempt to use an empty SHEPrivateKey");  
+  helib::assertFalse(empty, "attempt to use an empty SHEPrivateKey");
   if (log) (*log) << "outputting SHEPrivateKey..." << std::endl;
   long typeValue = SHEContext::GetContextTypeValue(type);
   write_raw_int(str, SHEPrivateKeyMagic); // magic to say we're a SHEPrivateKey
@@ -198,7 +198,7 @@ void SHEPrivateKey::writeTo(std::ostream& str) const
 
 void SHEPrivateKey::writeToJSON(std::ostream& str) const
 {
-  helib::assertFalse(empty, "attempt to use an empty SHEPrivateKey");  
+  helib::assertFalse(empty, "attempt to use an empty SHEPrivateKey");
   if (log) (*log) << "outputting JSON SHEPrivateKey" << std::endl;
   helib::executeRedirectJsonError<void>([&]() { str << writeToJSON(); });
   if (log) (*log) << "...done" << std::endl;
@@ -206,7 +206,7 @@ void SHEPrivateKey::writeToJSON(std::ostream& str) const
 
 helib::JsonWrapper SHEPrivateKey::writeToJSON(void) const
 {
-  helib::assertFalse(empty, "attempt to use an empty SHEPrivateKey");  
+  helib::assertFalse(empty, "attempt to use an empty SHEPrivateKey");
   auto body = [this]() {
     json j = {{"contextType", this->type },
               {"securityLevel", this->contextSecurityLevel },
@@ -226,7 +226,7 @@ void SHEPrivateKey::readFrom(std::istream& str)
   type = SHEContext::GetContextType(typeValue);
   contextSecurityLevel = read_raw_int(str);
   helib::Context *context = SHEContext::GetContext(type, contextSecurityLevel);
-  helib::assertNeq<helib::IOError>(context, (helib::Context *)nullptr, 
+  helib::assertNeq<helib::IOError>(context, (helib::Context *)nullptr,
                                   "Can't find context by type & level");
   privateKey = new helib::SecKey(helib::SecKey::readFrom(str, *context));
   empty = false;
@@ -250,7 +250,7 @@ void SHEPrivateKey::readFromJSON(const helib::JsonWrapper &jw)
 
     this->type = j.at("contextType");
     this->contextSecurityLevel = j.at("securityLevel");
-    helib::Context *context = SHEContext::GetContext(this->type, 
+    helib::Context *context = SHEContext::GetContext(this->type,
                                                      this->contextSecurityLevel);
     this->privateKey = new helib::SecKey(*context);
     this->privateKey->readJSON(helib::wrap(j.at("privateKey")));

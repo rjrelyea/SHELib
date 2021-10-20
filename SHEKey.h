@@ -30,7 +30,7 @@ public:
     empty = pubKey.empty;
     publicKey = nullptr;
     // We have two ways to handle this:
-    //  1) copy the encoding if we have it, or 
+    //  1) copy the encoding if we have it, or
     //  2) always mark hasEncoding to false and regenerate it as necessary.
     // Option 2 assume regenerating is expensive. We still have 'fast' copies
     // of publicKeys before we get an encoding, so it's probably the best
@@ -48,13 +48,13 @@ public:
   }
   SHEPublicKey(const SHEPublicKey &pubKey) { *this = pubKey; }
   SHEPublicKey(unsigned char *data, int size);
-  const helib::PubKey &getPublicKey(void) const { 
-        helib::assertFalse(empty, "attempt to use an empty SHEPublicKey"); 
+  const helib::PubKey &getPublicKey(void) const {
+        helib::assertFalse(empty, "attempt to use an empty SHEPublicKey");
         return *publicKey;
   }
-  const helib::Context &getHEContext(void) const 
+  const helib::Context &getHEContext(void) const
         { return getPublicKey().getContext(); }
-  const helib::EncryptedArray &getEncryptedArray(void) const 
+  const helib::EncryptedArray &getEncryptedArray(void) const
         { return getHEContext().getEA(); }
   const std::vector<helib::zzX> *getUnpackSlotEncoding(void) const {
         if (!hasEncoding) {
@@ -63,13 +63,13 @@ public:
           // our calculated value for the future)
           // cast away the consts to allow that to happen.
           helib::buildUnpackSlotEncoding(
-                  (std::vector<helib::zzX> &)unpackSlotEncoding, 
+                  (std::vector<helib::zzX> &)unpackSlotEncoding,
                   getEncryptedArray());
           *((bool *)&hasEncoding) = true;
         }
         return &unpackSlotEncoding;
   }
-  double securityLevel(void) const 
+  double securityLevel(void) const
     { return getHEContext().securityLevel(); }
   static void setLog(std::ostream& str) { log = &str; }
   static std::ostream *getLog(void) { return log; }
@@ -82,7 +82,7 @@ public:
   void readFrom(std::istream& str);
   void readFromJSON(std::istream& str);
   void readFromJSON(const helib::JsonWrapper& jw);
-  void clear(void) { 
+  void clear(void) {
     if (empty) return;
     empty = true;
     delete publicKey;
@@ -119,19 +119,19 @@ public:
   SHEPrivateKey(const SHEPrivateKey &pubKey) { *this = pubKey; }
   SHEPrivateKey(unsigned char *data, int size);
   const helib::SecKey &getPrivateKey(void) const {
-        helib::assertFalse(empty, "attempt to use an empty SHEPrivateKey"); 
+        helib::assertFalse(empty, "attempt to use an empty SHEPrivateKey");
         return *privateKey; }
   static void setLog(std::ostream& str) { log = &str; }
   static std::ostream *getLog(void) { return log; }
-  double securityLevel(void) const 
+  double securityLevel(void) const
     { return getPrivateKey().getContext().securityLevel(); }
   void writeTo(std::ostream& str) const;
   void writeToJSON(std::ostream& str) const;
   helib::JsonWrapper writeToJSON(void) const;
-  void readFrom(std::istream& str); 
+  void readFrom(std::istream& str);
   void readFromJSON(std::istream& str);
   void readFromJSON(const helib::JsonWrapper& jw);
-  void clear(void) { 
+  void clear(void) {
     if (empty) return;
     empty = true;
     delete privateKey;

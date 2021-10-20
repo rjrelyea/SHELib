@@ -59,15 +59,15 @@ protected:
   void normalize(void);
   void denormalize(const SHEInt &targetexp);
   // raw GT comparison that ignores Nans
-  SHEBool rawGT(const SHEFp &a) const; 
-  SHEBool rawGE(const SHEFp &a) const; 
+  SHEBool rawGT(const SHEFp &a) const;
+  SHEBool rawGE(const SHEFp &a) const;
 
 public:
    static constexpr std::string_view typeName = "SHEFp";
   ~SHEFp(void) { labelHash.erase(this); }
   // copy operators
   SHEFp(const SHEFp &a, const char *label) :
-     sign(a.sign), exp(a.exp), mantissa(a.mantissa) 
+     sign(a.sign), exp(a.exp), mantissa(a.mantissa)
   { if (label) { labelHash[this] = label; } }
   SHEFp(const SHEFp &a) :
      sign(a.sign), exp(a.exp), mantissa(a.mantissa)  {}
@@ -78,8 +78,8 @@ public:
     resetNative();
     return *this;
   }
-   
-  // create a SHEFp using the context and size of a module SHEFp 
+
+  // create a SHEFp using the context and size of a module SHEFp
   SHEFp(const SHEFp &model, shemaxfloat_t a, const char *label=nullptr);
   // read an int from the stream
   SHEFp(const SHEPublicKey &pubkey, std::istream &str,
@@ -147,7 +147,7 @@ public:
   const SHEInt &getSign(void) const { return sign; }
   const SHEInt &getExp(void) const { return exp; }
   const SHEInt &getMantissa(void) const { return mantissa; }
-  const char *getLabel(void) const 
+  const char *getLabel(void) const
   {const char *label = labelHash[this];
    if (label) return label;
    return setNextLabel(); }
@@ -168,7 +168,7 @@ public:
   void reCrypt(SHEFp &a);
 
 #ifdef DEBUG
-  static void setDebugPrivateKey(SHEPrivateKey &privKey) 
+  static void setDebugPrivateKey(SHEPrivateKey &privKey)
     { debugPrivKey = &privKey; }
 #endif
   static void setLog(std::ostream &str) { log = &str; }
@@ -205,7 +205,7 @@ public:
 
 
 // overload integer(unencrypted) [op] SHEFp, so we get the same results
-// even if we swap the unencrypted and encrypted values. We can implent most 
+// even if we swap the unencrypted and encrypted values. We can implent most
 // of them using either communitive values, or communitive identities
 inline SHEFp operator+(shemaxfloat_t a, const SHEFp &b) { return b+a; }
 inline SHEFp operator-(shemaxfloat_t a, const SHEFp &b) { return (-b)+a; }
@@ -218,7 +218,7 @@ inline SHEBool operator!=(shemaxfloat_t a, const SHEFp &b) { return b != a; }
 inline SHEBool operator==(shemaxfloat_t a, const SHEFp &b) { return b == a; }
 // these operators can't easily commute, we implement
 // them by explicit casts to SHEFp
-inline SHEFp operator/(shemaxfloat_t a, const SHEFp &b) 
+inline SHEFp operator/(shemaxfloat_t a, const SHEFp &b)
        { SHEFp heA(b, a); return heA/b; }
 // io operators. uses public functions, do no need a friend declaration
 std::istream&operator>>(std::istream&, SHEFp &a);

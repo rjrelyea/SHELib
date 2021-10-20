@@ -31,6 +31,7 @@ public:
  }
 };
 
+// helper class to format the time in a human usable way
 class PrintTime
 {
 private:

@@ -1,4 +1,8 @@
 *.o
+.*.swp
+keytest.*
+*.json
+*.log
 libSHELib.a
 SHEEval
 SHEPerf

@@ -20,7 +20,7 @@ uint64_t SHEInt::nextTmp = 0;
 SHEIntLabelHash SHEInt::labelHash;
 
 static std::vector<helib::Ctxt> &
-sheInt_Encrypt(const SHEPublicKey &pubKey, 
+sheInt_Encrypt(const SHEPublicKey &pubKey,
               std::vector<helib::Ctxt> &encryptedData,
               uint64_t myint, int bitSize)
 {
@@ -40,7 +40,7 @@ sheInt_Encrypt(const SHEPublicKey &pubKey,
 }
 
 SHEInt::SHEInt(const SHEPublicKey &pubKey_, uint64_t myInt,
-               int bitSize_, bool isUnsigned_, const char *label) : 
+               int bitSize_, bool isUnsigned_, const char *label) :
               pubKey(&pubKey_), bitSize(bitSize_),
               isUnsigned(isUnsigned_)
 {
@@ -53,7 +53,7 @@ SHEInt::SHEInt(const SHEPublicKey &pubKey_, uint64_t myInt,
   }
 }
 
-SHEInt::SHEInt(const SHEInt &model, uint64_t myInt,const char *label) 
+SHEInt::SHEInt(const SHEInt &model, uint64_t myInt,const char *label)
                : pubKey(model.pubKey)
 {
   if (label) labelHash[this]=label;
@@ -85,7 +85,7 @@ SHEInt::SHEInt(const SHEPublicKey &pubKey_, std::istream& str,
 
 // change the size of our encryptedData array. On increase it
 // will sign extend, on decrease it will truncate
-void SHEInt::reset(int newBitSize, bool newIsUnsigned) 
+void SHEInt::reset(int newBitSize, bool newIsUnsigned)
 {
   isUnsigned = newIsUnsigned;
   if (newBitSize == bitSize) {
@@ -136,7 +136,7 @@ bool SHEInt::needRecrypt(long level) const
   // first check by level
   return level > bitCapacity();
 }
-  
+
 
 bool SHEInt::needRecrypt(const SHEInt &a, long level) const
 {
@@ -200,13 +200,11 @@ void SHEInt::verifyArgs(long level)
     reCrypt();
   }
 }
-  
-
 
 ///////////////////////////////////////////////////////////////////////////
 //                      input/output operators.                           /
 ///////////////////////////////////////////////////////////////////////////
-std::ostream& operator<<(std::ostream& str, const SHEInt& a) 
+std::ostream& operator<<(std::ostream& str, const SHEInt& a)
 {
   a.writeToJSON(str);
   return str;
@@ -221,9 +219,9 @@ std::istream& operator>>(std::istream& str, SHEInt& a)
 std::ostream &operator<<(std::ostream& str, const SHEIntSummary &summary)
 {
   long level = summary.sheint.bitCapacity();
-  str << "SHEInt(" <<  summary.sheint.getLabel() << "," 
-      << summary.sheint.getSize() << "," 
-      << (char *)(summary.sheint.getUnsigned() ? "U" : "S") << "," 
+  str << "SHEInt(" <<  summary.sheint.getLabel() << ","
+      << summary.sheint.getSize() << ","
+      << (char *)(summary.sheint.getUnsigned() ? "U" : "S") << ","
       << (char *)(summary.sheint.getExplicitZero() ? "Z" : "E")
       << "," ;
   if (level == LONG_MAX) {
@@ -283,7 +281,7 @@ void SHEInt::writeTo(std::ostream& str) const
   write_raw_int(str, SHEIntMagic); // magic to say we're a SHEInt
   write_raw_int(str, bitSize);
   write_raw_int(str, isUnsigned);
-  // make our explicit zero encrypted now 
+  // make our explicit zero encrypted now
   if (isExplicitZero) {
     helib::Ctxt zero_Ctxt(pubKey->getPublicKey());
     zero_Ctxt.clear();
@@ -319,7 +317,7 @@ helib::JsonWrapper SHEInt::writeJSON(void) const
   return helib::executeRedirectJsonError<helib::JsonWrapper>(body);
 }
 
-SHEInt SHEInt::readFrom(std::istream& str, const SHEPublicKey &pubKey) 
+SHEInt SHEInt::readFrom(std::istream& str, const SHEPublicKey &pubKey)
 {
   SHEInt a(pubKey, 0, 1, true);
   a.read(str);
@@ -344,7 +342,7 @@ SHEInt SHEInt::readFromJSON(const helib::JsonWrapper& j,
   return a;
 }
 
-void SHEInt::read(std::istream& str) 
+void SHEInt::read(std::istream& str)
 {
   long magic;
 
@@ -381,11 +379,11 @@ void SHEInt::readFromJSON(const helib::JsonWrapper& jw)
     // resize, then reads the parts in-place, so may re-use memory.
     const helib::PubKey &helibPubKey = pubKey->getPublicKey();
     helib::Ctxt templateCtxt(helibPubKey);
-    helib::readVectorFromJSON(j.at("encryptedData"), 
+    helib::readVectorFromJSON(j.at("encryptedData"),
                               this->encryptedData, templateCtxt);
     this->isExplicitZero = false;
     // sanity-check
-    helib::assertEq(this->bitSize, (int) this->encryptedData.size(), 
+    helib::assertEq(this->bitSize, (int) this->encryptedData.size(),
        "bitSize and the size of the encryptedData does not match");
   };
 
@@ -531,10 +529,10 @@ SHEInt &SHEInt::mulRaw(const SHEInt &a, SHEInt &result) const
 
   if (isUnsigned == a.isUnsigned) {
       // If the input values are both unsigned or both signed,
-      // multTwoNumbers can handle the result 
+      // multTwoNumbers can handle the result
       result.isUnsigned = isUnsigned;
       if (log) {
-        (*log) << (SHEIntSummary)*this << ".mulRaw(" << (SHEIntSummary) a << 
+        (*log) << (SHEIntSummary)*this << ".mulRaw(" << (SHEIntSummary) a <<
                "," << (SHEIntSummary)result << ")=" << std::flush;
       }
       helib::multTwoNumbers(wrapper,
@@ -557,8 +555,8 @@ SHEInt &SHEInt::mulRaw(const SHEInt &a, SHEInt &result) const
       m2.reset(a.bitSize+1,isUnsigned);
       result.isUnsigned = false;
       if (log) {
-        (*log) << (SHEIntSummary)*this << ".mulRaw-mixed(" 
-               << (SHEIntSummary) a << "," 
+        (*log) << (SHEIntSummary)*this << ".mulRaw-mixed("
+               << (SHEIntSummary) a << ","
                << (SHEIntSummary)result << ")=" << std::flush;
       }
       helib::multTwoNumbers(wrapper,
@@ -577,7 +575,7 @@ SHEInt &SHEInt::mulRaw(const SHEInt &a, SHEInt &result) const
 // we do the shift by hand rather than use the binaryArithm library here
 // because we want to implement shift in place.
 
-void SHEInt::leftShift(uint64_t shift) 
+void SHEInt::leftShift(uint64_t shift)
 {
   // shift of zero is a noop
   if (isExplicitZero) {
@@ -593,7 +591,7 @@ void SHEInt::leftShift(uint64_t shift)
 }
 
 // the binaryArithm library doesn't have a right shift
-void SHEInt::rightShift(uint64_t shift) 
+void SHEInt::rightShift(uint64_t shift)
 {
   // shift of zero is a noop
   if (isExplicitZero) {
@@ -662,7 +660,7 @@ SHEInt SHEInt::abs(void) const
 // call divide in any of the logicall operation code.
 //
 // Also Note if divisor is an encrypted zero, we can't detect that case,
-// so it will return incorrect results (quotient=0, remainder=0). Callers are 
+// so it will return incorrect results (quotient=0, remainder=0). Callers are
 // responsible for detecting and dealing with that case on their own.
 
 SHEInt &SHEInt::udivRaw(const SHEInt &divisor, SHEInt &result, bool mod) const
@@ -671,7 +669,7 @@ SHEInt &SHEInt::udivRaw(const SHEInt &divisor, SHEInt &result, bool mod) const
   // for our math case, make sure the dividend has at least as many
   // bits as the divisor
   if (log) {
-    (*log) << (SHEIntSummary) *this << ".udivRaw(" 
+    (*log) << (SHEIntSummary) *this << ".udivRaw("
           << (SHEIntSummary) divisor << ","
           << (SHEIntSummary) result << "," << (char *)(mod?"true":"false")
           << "=" << std::endl;
@@ -682,7 +680,7 @@ SHEInt &SHEInt::udivRaw(const SHEInt &divisor, SHEInt &result, bool mod) const
   // get a handy zero to initialize our variables
   SHEInt zero(*pubKey, 0, dividend.bitSize, true);
   // below we keep a couple of versions, one that will record the final
-  // result of the loop, and one that continues to shift/decrement through the 
+  // result of the loop, and one that continues to shift/decrement through the
   // whole loop, We'll use encrypted select to decide when to stop updating
   // the result version
   SHEInt remainder(zero,"remainder");
@@ -730,7 +728,7 @@ SHEInt &SHEInt::udivRaw(const SHEInt &divisor, SHEInt &result, bool mod) const
   }
    return result;
 }
-     
+
 
 ///////////////////////////////////////////////////////////////////////////
 //                      Mathematic operators.                             /
@@ -742,8 +740,8 @@ SHEInt SHEInt::operator-(void) const {
   if (isExplicitZero) {
     return *this;
   }
-  SHEInt copy(*this); 
-  SHEInt result(*pubKey,0,bitSize,isUnsigned);
+  SHEInt copy(*this);
+  SHEInt result(*this,(uint64_t)0);
   result.expandZero(); // unlike addition and multiplication, negation
                        // result needs to be preallocated
   helib::CtPtrs_vectorCt wrapper(result.encryptedData);
@@ -763,11 +761,11 @@ SHEInt SHEInt::operator+(const SHEInt &a) const {
     return a;
   }
   if (a.bitSize == bitSize) {
-     SHEInt result(*pubKey, 0, bitSize, isUnsigned);
+     SHEInt result(*this, (uint64_t)0);
     return SHEInt(this->addRaw(a, result));
   }
   if (a.bitSize < bitSize) {
-    SHEInt result(*pubKey, 0, bitSize, isUnsigned);
+    SHEInt result(*this, (uint64_t)0);
     SHEInt add2(a);
     add2.reset(bitSize, a.isUnsigned);
     return this->addRaw(add2, result);
@@ -786,7 +784,7 @@ SHEInt SHEInt::operator-(const SHEInt &a) const {
   if (isExplicitZero) {
    return -a;
   }
-  SHEInt result(*pubKey, 0, bitSize, isUnsigned);
+  SHEInt result(*this, (uint64_t)0);
   result.expandZero(); // unlike addition and multiplication, subtraction
                        // needs expanded vectors
   if (a.bitSize == bitSize) {
@@ -885,7 +883,7 @@ SHEInt SHEInt::operator*(const SHEInt &a) const {
   if (isExplicitZero) {
     return *this;
   }
-  SHEInt result(*pubKey, 0, bitSize, isUnsigned);
+  SHEInt result(*this, (uint64_t)0);
   if (bitSize < a.bitSize) {
     result.reset(a.bitSize,isUnsigned);
   }
@@ -908,7 +906,7 @@ SHEInt &SHEInt::operator*=(const SHEInt &a) {
 // multiplication (decreasing the need for bootstraping)
 SHEInt SHEInt::operator*(uint64_t a) const
 {
-  SHEInt result(*pubKey, 0, bitSize, isUnsigned);
+  SHEInt result(*this, (uint64_t)0);
 
   // handle some quite options here
   if (a == 0) {
@@ -918,7 +916,7 @@ SHEInt SHEInt::operator*(uint64_t a) const
   if (isExplicitZero) {
     return result;
   }
- 
+
   // find top bit in our unencrypted multiplier
   // note: topBit is declared outside the scope of
   // the 'for' loop so we can reference it later.
@@ -1028,7 +1026,7 @@ SHEInt SHEInt::operator%(const SHEInt &a) const
   SHEInt divisor = a.abs();
   dividend.isUnsigned = true;
   divisor.isUnsigned = true;
-  SHEInt result(*pubKey, 0, bitSize, true,"modresult");
+  SHEInt result(*pubKey, 0, bitSize, true, "modresult");
   // do the unsigned division
   (void) dividend.udivRaw(divisor, result, true);
   result.isUnsigned = false;
@@ -1039,7 +1037,7 @@ SHEInt SHEInt::operator%(const SHEInt &a) const
 //
 // No real efficiency gain in modulus, just do the normal
 // wrapping
-// 
+//
 SHEInt &SHEInt::operator%=(const SHEInt &a) {
   *this = *this % a;
   return *this;
@@ -1069,7 +1067,7 @@ SHEInt SHEInt::operator>>(const SHEInt &a) const
   if (isExplicitZero) {
     return *this;
   }
-  SHEInt result(*pubKey, 0, bitSize, isUnsigned);
+  SHEInt result(*this, (uint64_t)0);
   rightShift(a, result);
   return result;
 }
@@ -1082,7 +1080,7 @@ SHEInt SHEInt::operator<<(const SHEInt &a) const
   if (isExplicitZero) {
     return *this;
   }
-  SHEInt result(*pubKey, 0, bitSize, isUnsigned);
+  SHEInt result(*this, (uint64_t)0);
   leftShift(a,result);
   return result;
 }
@@ -1149,7 +1147,7 @@ SHEInt &SHEInt::operator--(void)
   return *this;
 }
 
-SHEInt SHEInt::operator++(int dummy) 
+SHEInt SHEInt::operator++(int dummy)
 {
   SHEInt result(*this);
   *this += 1;
@@ -1182,21 +1180,21 @@ void SHEInt::bitNot(void)
 SHEInt SHEInt::operator~(void) const
 {
   if (isExplicitZero) {
-    return SHEInt(*pubKey,-1LL,bitSize,isUnsigned);
+    return SHEInt(*this,-1LL);
   }
   SHEInt result(*this);
   result.bitNot();
   return result;
 }
-   
+
 
 SHEInt SHEInt::operator^(const SHEInt &a) const
 {
   if (a.isExplicitZero) {
-    return ~*this;
+    return *this;
   }
   if (isExplicitZero) {
-    return ~a;
+    return a;
   }
 
   SHEInt result(*this);
@@ -1280,11 +1278,10 @@ SHEInt SHEInt::operator|(const SHEInt &a) const
 SHEInt &SHEInt::operator^=(const SHEInt &a)
 {
   if (a.isExplicitZero) {
-    *this = ~*this;
     return *this;
   }
   if (isExplicitZero) {
-    *this = ~a;
+    *this = a;
     return *this;
   }
 
@@ -1320,7 +1317,7 @@ SHEInt &SHEInt::operator&=(const SHEInt &a)
   }
   verifyArgs(target);
   helib::CtPtrs_vectorCt wrapper(encryptedData);
-  helib::bitwiseAnd(wrapper, wrapper, 
+  helib::bitwiseAnd(wrapper, wrapper,
                     helib::CtPtrs_vectorCt(target.encryptedData));
   return *this;
 }
@@ -1342,7 +1339,7 @@ SHEInt &SHEInt::operator|=(const SHEInt &a)
     reset(a.bitSize, isUnsigned);
   }
   verifyArgs(target);
-  // bitwiseOr can't handle overlapped buffers 
+  // bitwiseOr can't handle overlapped buffers
   std::vector<helib::Ctxt> lhs = encryptedData;
   helib::CtPtrs_vectorCt wrapper(encryptedData);
   helib::bitwiseOr(wrapper,helib::CtPtrs_vectorCt(lhs),
@@ -1353,11 +1350,10 @@ SHEInt &SHEInt::operator|=(const SHEInt &a)
 SHEInt SHEInt::operator^(uint64_t a) const
 {
   if (a == 0) {
-    return ~*this;
+    return *this;
   }
   if (isExplicitZero) {
-    SHEInt result(*pubKey, a, bitSize, isUnsigned);
-    return ~result;
+    return SHEInt(*this, a);
   }
 
   SHEInt result(*this);
@@ -1369,8 +1365,7 @@ SHEInt SHEInt::operator^(uint64_t a) const
 SHEInt SHEInt::operator&(uint64_t a) const
 {
   if (a == 0) {
-    SHEInt result(*pubKey, 0, bitSize, isUnsigned);
-    return result;
+    return SHEInt(*this, (uint64_t)0);
   }
   if (isExplicitZero) {
     return *this;
@@ -1386,8 +1381,7 @@ SHEInt SHEInt::operator|(uint64_t a) const
     return *this;
   }
   if (isExplicitZero) {
-    SHEInt result(*pubKey, a, bitSize, isUnsigned);
-    return result;
+    return SHEInt(*this, a);
   }
   SHEInt result(*this);
   result |= a;
@@ -1397,12 +1391,11 @@ SHEInt SHEInt::operator|(uint64_t a) const
 SHEInt &SHEInt::operator^=(uint64_t a)
 {
   if (a == 0) {
-    *this = ~*this;
     return *this;
   }
   if (isExplicitZero) {
-    SHEInt result(*pubKey, a, bitSize, isUnsigned);
-    *this = ~result;
+    SHEInt result(*this, a);
+    *this = result;
     return *this;
   }
 
@@ -1437,7 +1430,7 @@ SHEInt &SHEInt::operator|=(uint64_t a)
     return *this;
   }
   if (isExplicitZero) {
-    *this= SHEInt(*pubKey, a, bitSize, isUnsigned);
+    *this= SHEInt(*this, a);
     return *this;
   }
   SHEInt one(*pubKey, 1, 1, true);
@@ -1534,7 +1527,7 @@ SHEInt SHEInt::isPositive(void) const
     forceSigned.reset(bitSize+1,true);
     forceSigned.isUnsigned = false;
     return (-forceSigned).isNegative();
-  } 
+  }
   SHEInt thisNeg = -*this;
   return thisNeg.isNegative();
 }
@@ -1554,7 +1547,6 @@ SHEInt SHEInt::operator!(void) const
   return result;
 }
 
-#define MAX(a,b) (((a)>(b))?(a):(b))
 SHEInt SHEInt::select(const SHEInt &a_true, const SHEInt &a_false) const
 {
   if (isExplicitZero) {
@@ -1564,7 +1556,7 @@ SHEInt SHEInt::select(const SHEInt &a_true, const SHEInt &a_false) const
     return isNotZero().select(a_true, a_false);
   }
   SHEInt mask(*this);
-  mask.reset(MAX(a_true.bitSize,a_false.bitSize), false);
+  mask.reset(std::max(a_true.bitSize,a_false.bitSize), false);
   mask.isUnsigned = a_true.isUnsigned || a_false.isUnsigned;
   return (mask&a_true) | ((~mask)&a_false);
 }
@@ -1572,7 +1564,7 @@ SHEInt SHEInt::select(const SHEInt &a_true, const SHEInt &a_false) const
 SHEInt SHEInt::select(const SHEInt &a_true, uint64_t a_false) const
 {
   if (isExplicitZero) {
-    return SHEInt(*pubKey,a_false,a_true.bitSize,a_true.isUnsigned);
+    return SHEInt(a_true,a_false);
   }
   if (bitSize != 1) {
     return isNotZero().select(a_true, a_false);
@@ -1597,18 +1589,31 @@ SHEInt SHEInt::select(uint64_t a_true, const SHEInt &a_false) const
   return (mask&a_true) | ((~mask)&a_false);
 }
 
+int
+getBitSize(int64_t a)
+{
+  int i;
+  int64_t topBit = a&(1ULL<<63);
+  for(i=62; i > 0; i--) {
+    if (topBit != a&(1ULL<<i)) {
+      return i+2;
+    }
+  }
+  return 1; // encode at least 1 bit;
+}
+
 SHEInt SHEInt::select(uint64_t a_true, uint64_t a_false) const
 {
+  int size = std::max(getBitSize(a_true), getBitSize(a_false));
   if (isExplicitZero) {
-    // we probably need versions of this that handle other int type 
-    return SHEInt(*pubKey,a_false,64,true);
+    // we probably need versions of this that handle other int type
+    return SHEInt(*pubKey, a_false, size, false);
   }
   if (bitSize != 1) {
     return isNotZero().select(a_true, a_false);
   }
   SHEInt mask(*this);
-  mask.reset(64, false); // initially set to signed so ther reset sign extends
-  mask.isUnsigned = true; // default to unsigned
+  mask.reset(size, false); // reset sign extends
   return (mask&a_true) | ((~mask)&a_false);
 }
 
@@ -1723,7 +1728,7 @@ SHEInt SHEInt::operator>(const SHEInt &a) const
     hasResult=::selectBit(notEqual,result.encryptedData[0],hasResult);
     // this compare is expensive in terms of capacity, may need to reCrypt
     // a couple of times. Fortunately this is just one bit
-    if ((hasResult.bitCapacity() < SHEINT_DEFAULT_LEVEL_TRIGGER) 
+    if ((hasResult.bitCapacity() < SHEINT_DEFAULT_LEVEL_TRIGGER)
        || (localResult.bitCapacity() < SHEINT_DEFAULT_LEVEL_TRIGGER)) {
       if (log) {
         (*log) << " -reCrypting hasResults(" << hasResult.bitCapacity()
@@ -1754,7 +1759,6 @@ SHEInt SHEInt::operator>(const SHEInt &a) const
                << ") and localResult(" << localResult.bitCapacity()
                << ")" << std::endl;
       }
-      
     }
   }
   // now handle sign manipulation
@@ -1805,7 +1809,7 @@ SHEInt SHEInt::operator&&(bool a) const
   }
   return SHEInt(*pubKey, (uint64_t)0, 1, true);
 }
-  
+
 SHEInt SHEInt::operator||(bool a) const
 {
   if (!a) {

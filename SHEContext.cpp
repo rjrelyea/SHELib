@@ -270,7 +270,7 @@ getGen(long m, long ord)
     ordCandidate = multOrd(candidate,m);
     if (ordCandidate == ord) {
        // success, we've found one already!
-      std::cout << "found generator directly=" <<  candidate 
+      std::cout << "found generator directly=" <<  candidate
                 << " ordCandidate=" << ordCandidate
                 << " ord=" << ord << std::endl;
        return candidate;

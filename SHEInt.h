@@ -20,7 +20,7 @@
 // subraction compare is slower, but single bit operation compare
 // uses more levels, and thus may take multiple bootstrapping operations.
 //#define SHEIT_COMPARE_USE_SUB 1 // use subtraction & is neg for compare versus
-                                // single bit operations 
+                                // single bit operations
 
 //
 // this class uses the helib binaryArthm interface to implement various
@@ -136,8 +136,8 @@ public:
     resetNative();
     return *this;
   }
-   
-  // create a SHEInt using the context and size of a module SHEInt 
+
+  // create a SHEInt using the context and size of a module SHEInt
   SHEInt(const SHEInt &model, uint64_t a, const char *label=nullptr);
   // read an int from the stream
   SHEInt(const SHEPublicKey &pubkey,std::istream &str,
@@ -257,7 +257,7 @@ public:
     result.encryptedData[0] = encryptedData[bit];
     return result;
   }
-  const char *getLabel(void) const 
+  const char *getLabel(void) const
   {const char *label = labelHash[this];
    if (label) return label;
    return setNextLabel(); }
@@ -266,6 +266,9 @@ public:
   // get the decrypted result given the private key
   uint64_t decryptRaw(const SHEPrivateKey &privKey) const;
   void expandZero(void);
+  void clear(void) {
+    isExplicitZero = true;
+  }
   // bootstrapping help
   long bitCapacity(void) const;
   double securityLevel(void) const;
@@ -279,7 +282,7 @@ public:
   void reCrypt(SHEInt &a);
 
 #ifdef DEBUG
-  static void setDebugPrivateKey(SHEPrivateKey &privKey) 
+  static void setDebugPrivateKey(SHEPrivateKey &privKey)
     { debugPrivKey = &privKey; }
 #endif
   static void setLog(std::ostream &str) { log = &str; }
@@ -315,7 +318,7 @@ public:
 };
 
 // overload integer(unencrypted) [op] SHEInt, so we get the same results
-// even if we swap the unencrypted and encrypted values. We can implent most 
+// even if we swap the unencrypted and encrypted values. We can implent most
 // of them using either communitive values, or communitive identities
 inline SHEInt operator+(uint64_t a, const SHEInt &b) { return b+a; }
 inline SHEInt operator-(uint64_t a, const SHEInt &b) { return (-b)+a; }
@@ -335,14 +338,26 @@ inline SHEInt operator>=(int64_t a, const SHEInt &b) { return b <= a; }
 inline SHEInt operator<=(int64_t a, const SHEInt &b) { return b >= a; }
 // these operators can't easily commute, we implement
 // them by explicit casts to SHEInt
-inline SHEInt operator/(uint64_t a, const SHEInt &b) 
+inline SHEInt operator/(uint64_t a, const SHEInt &b)
        { SHEInt heA(b, a); return heA/b; }
-inline SHEInt operator%(uint64_t a, const SHEInt &b) 
+inline SHEInt operator%(uint64_t a, const SHEInt &b)
        { SHEInt heA(b, a); return heA%b; }
-inline SHEInt operator<<(uint64_t a, const SHEInt &b) 
+inline SHEInt operator<<(uint64_t a, const SHEInt &b)
        { SHEInt heA(b, a); return heA<<b; }
-inline SHEInt operator>>(uint64_t a, const SHEInt &b) 
+inline SHEInt operator>>(uint64_t a, const SHEInt &b)
        { SHEInt heA(b, a); return heA>>b; }
+inline  SHEInt select(const SHEInt &sel, const SHEInt &a_true,
+                      const SHEInt &a_false)
+       { return sel.select(a_true, a_false); }
+inline  SHEInt select(const SHEInt &sel, const SHEInt &a_true,
+                      uint64_t a_false)
+       { return sel.select(a_true, a_false); }
+inline  SHEInt select(const SHEInt &sel, uint64_t a_true,
+                      const SHEInt &a_false)
+       { return sel.select(a_true, a_false); }
+inline  SHEInt select(const SHEInt &sel, uint64_t a_true,
+                      uint64_t a_false)
+       { return sel.select(a_true, a_false); }
 // io operators. uses public functions, do no need a friend declaration
 std::istream&operator>>(std::istream&, SHEInt &a);
 std::ostream&operator<<(std::ostream&, const SHEInt &a);
@@ -398,8 +413,8 @@ NEW_INT_CLASS(SHEUInt64, uint64_t, 64, true)
 // cast to bool is different, it returns !zero rather than truncate
 // this maintains the standard C++ semantic for bools.
 class SHEBool : public SHEInt {
-protected:           
-  virtual void resetNative(void) { 
+protected:
+  virtual void resetNative(void) {
     if (getSize() != 1) {
       *this = isNotZero();
     }
@@ -407,9 +422,9 @@ protected:
   }
 public:
   static constexpr std::string_view typeName = "SHEBool";
-  SHEBool(const SHEPublicKey &pubKey, const char *label_=nullptr) 
+  SHEBool(const SHEPublicKey &pubKey, const char *label_=nullptr)
     : SHEInt(pubKey, (uint64_t)0, 1, true, label_) {}
-  SHEBool(const SHEPublicKey &pubKey, 
+  SHEBool(const SHEPublicKey &pubKey,
           const unsigned char *encryptedInt, int dataSize,
           const char *label_=nullptr) :
     SHEInt(pubKey, encryptedInt, dataSize, label_) { resetNative(); }
@@ -417,11 +432,11 @@ public:
     SHEInt(pubKey, myBool, 1, true, label_) {}
   SHEBool(const SHEInt &a, const char *label_) : SHEInt(a.isNotZero(),label_) {}
   SHEBool(const SHEInt &a) : SHEInt(a.isNotZero()) {}
-  SHEBool(const SHEInt &model, bool a, const char *label_=nullptr) 
-    : SHEInt(model,(uint64_t) a) 
+  SHEBool(const SHEInt &model, bool a, const char *label_=nullptr)
+    : SHEInt(model,(uint64_t) a)
     { resetNative(); }
-  SHEBool &operator=(bool a) 
-             { SHEInt a_(*this,(uint64_t)a); return *this=a_; } 
+  SHEBool &operator=(bool a)
+             { SHEInt a_(*this,(uint64_t)a); return *this=a_; }
   bool decrypt(SHEPrivateKey &privKey) { return (bool) decryptRaw(privKey); }
 };
 #endif

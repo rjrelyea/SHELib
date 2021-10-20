@@ -40,6 +40,6 @@ SHEFp.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEFp.h
 SHEInt.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h
 SHEKey.o: SHEKey.h SHEContext.h SHEMagic.h SHEio.h
 SHEio.o: SHEio.h
-SHETest.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h
+SHETest.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h
 SHEPerf.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h
 SHEEval.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h
