@@ -99,8 +99,6 @@ private:
   }
 
 protected:
-  SHEInt(const SHEPublicKey &pubkey, uint64_t myInt,
-         int bitSize, bool isUnsigned, const char *label=nullptr);
   SHEInt(const SHEPublicKey &pubkey, const unsigned char *encryptedInt,
          int size, const char *label=nullptr);
   // used so the parent can reset the bit sizes to the proper native values to
@@ -110,6 +108,9 @@ protected:
 public:
    static constexpr std::string_view typeName = "SHEInt";
   ~SHEInt(void) { labelHash.erase(this); }
+  // basic constructor for custom SHEInt values;
+  SHEInt(const SHEPublicKey &pubkey, uint64_t myInt,
+         int bitSize, bool isUnsigned, const char *label=nullptr);
   // copy operators
   SHEInt(const SHEInt &a, const char *label) :
      pubKey(a.pubKey), isUnsigned(a.isUnsigned),
@@ -120,19 +121,19 @@ public:
      pubKey(a.pubKey), isUnsigned(a.isUnsigned), bitSize(a.bitSize),
      isExplicitZero(a.isExplicitZero)
   { if (!isExplicitZero) encryptedData = a.encryptedData;
-    nativeReset(); }
+    resetNative(); }
   SHEInt &operator=(const SHEInt &a)
   { pubKey=a.pubKey;
     isUnsigned = a.isUnsigned;
     bitSize = a.bitSize;
     isExplicitZero = a.isExplicitZero;
     if (!isExplicitZero) encryptedData = a.encryptedData;
-    nativeReset();
+    resetNative();
     return *this;
   }
   SHEInt &operator=(uint64_t a)
-  { *this = SHEInt(*this, a)
-    nativeReset();
+  { *this = SHEInt(*this, a);
+    resetNative();
     return *this;
   }
    
@@ -240,6 +241,22 @@ public:
   int getSize(void) const { return bitSize; }
   bool getUnsigned(void) const { return isUnsigned; };
   bool getExplicitZero(void) const { return isExplicitZero; }
+  SHEInt getBitHigh(int bit) const {
+    SHEInt result(*pubKey, 0, 1, true);
+    if ((bit > (bitSize-1)) || (bit < 0) || isExplicitZero) {
+      return result;
+    }
+    result.encryptedData[0] = encryptedData[bitSize-1-bit];
+    return result;
+  }
+  SHEInt getBit(int bit) const {
+    SHEInt result(*pubKey, 0, 1, true);
+    if ((bit > (bitSize-1)) || (bit < 0) || isExplicitZero) {
+      return result;
+    }
+    result.encryptedData[0] = encryptedData[bit];
+    return result;
+  }
   const char *getLabel(void) const 
   {const char *label = labelHash[this];
    if (label) return label;

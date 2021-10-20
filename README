@@ -44,6 +44,9 @@ C++ << operators. In a real system, you will want to send the publickey
 along with your encrypted data, so that they server can operate on your
 encrypted data.
 
+NOTE: in production, only the client needs to generate a keypair, the server
+just accepts publicKey along with the encrypted data.
+
 Integer operations.
 
 Encrypted data is stored in various SHEInt classes: SHEInt8, SHEInt16, 
@@ -80,12 +83,17 @@ query the result (unless you decrypt it). What you can do is use the result
 to select a value:
   r = (a==b).select(10, 5);
 
-r will get the selected encrypted value (either 10 or 5) depending on the state
-of the comparision.
+or 
+  r = select(a==b, 10, 5);
 
-To implement a while loop with an encrypted index, you need to instead use a
+r will get the selected encrypted value (either 10 or 5) depending on the state
+of the comparision. You can use integer constants or SHEInt values or a mix of
+values in the select.
+
+To implement a while loop with an encrypted index, you can't use and
+encrypted bool result to exit the loop. Instead you need to use a
 for loop to loop over all the possibilities and stop updating your variables
-when the loop condition ends:
+when the loop condition 'ends':
 
    // unencrypted a and b:
    while (a < b) {
@@ -94,22 +102,25 @@ when the loop condition ends:
   }
 
   // encrypted a && b, assumes a is not negative...
-  SHEBool break(publicKey, false);
+  SHEBool lbreak(publicKey, false);
   for (int i=0; i < b.getSize(); i++) {
-    break= break || (a < b);
-    a = break.select(a, a+1);
-    b = break.select(b, b>>1);
+    // lbreak is zero until the condition is reached
+    lbreak= lbreak || (a < b);
+    // update variables until the lbreak condition occurs
+    a = lbreak.select(a, a+1);
+    b = lbreak.select(b, b>>1);
   }
 
 Note: it's important to know the actual maximum bound of the while loop, if,
 in the above example, a is -b.getSize(), then this loop won't execute as
-long as the loop above. 
+long as expected an will produce incorrect results.
 
 SHEVector operations.
 
 SHEVector allows you to store a vector or array of encrypted values and access
-that array with an encrypted index. In all other ways it functions as a normal std::vector. When using an encrypted index, you can't assign to it, but you can
-use the assign method:
+that array with an encrypted index. In all other ways it functions as a normal
+std::vector. When using an encrypted index, you can't assign to it, but you can
+use the assign() method:
 
     SHEInt16 model(publicKey);
     SHEVector<SHEInt16> array(model,1);
@@ -117,7 +128,8 @@ use the assign method:
     SHEInt16 r2(publicKey);
     SHEInt8 index(publicKey, 3);
 
-    array[1] = SHEInt16(publicKey, 5); // this works
+    array[1] = SHEInt16(publicKey, 5); // this works because the index is
+                                       // unencrypted
     array[3] = r;
     r2 = array[index];                // r2 will get an encrypted value of r
     array[index] = SHEInt16(publicKey, 7) // this will not work.
@@ -129,13 +141,48 @@ Indexes are type SHEInt.
 
 SHEFp operations
 
-Floating point is still under construction
+Like SHEInt, SHEFp is a base class used to implement SHEHalfFloat, 
+SHEBFloat16, SHEFloat, SHEDouble, SHEExtendedFloat, and SHELongDouble.
+Like SHEInt, in needs to be initialized with a publicKey either implicitly
+or explicitly. Once you have a float variable, you can assign to it, operate,
+on it, etc. Basic operators +, -, *, and / are defined (returning SHEFp).
+Comparision operators return SHEBool and can be used in a select function:
+
+SHEFp select(&SHEBool sel,const SHEFp &a_true, const SHEFp &a_false);
+version also allow mixing in floating point constants as well. 
 
 SHEString operations
 
 String operations are still under construction
-   
-
+  
 Performance and bootstrapping.
 
- 
+While pretty much anything you want to do with Integers and Doubles is support,
+not everything can be done in finite time. While the library 'hides' the
+details of underlying bootstrapping operations, they will quickly become
+appearant in your application. For any real security level, bootstrapping
+large integers, like 64 bits, can take 3-4 hours to complete. So while you
+may be able to do some operation in multiple seconds, when you run close to
+the noise limit, they can suddenly take hours. There are a couple of ways to
+mitigate this issue.
+
+   1) you can select a high noise tolerance context and try to complete your
+   entire calculation before bootstrapping becomes necessary.
+   2) you can use a lower noise tolerance to get faster performance for the
+   same security level.
+   3) you can reduce your security level.
+   4) you can reduce your integer size.
+
+For almost all usable security levels, SHEInt64 will have extremely poor
+performance. SHEInt16 will have the best compromise of performance and
+functionality. If you do have to boostrap, you can use the .bitCapacity()
+method to see how many more operations your variable can go before it needs
+to bootstrap. There is also a useful method (.verifyArgs()) that will
+preemptively bootstrap those variables before you execute a particular
+function. This is important because you may find that while SHELib can
+automatically bootstrap, it may bootstrap temparary copies, leaving the
+original variable unupdated. Also bootstrapping a variable that may be
+used in multiple locations helps keep
+
+
+

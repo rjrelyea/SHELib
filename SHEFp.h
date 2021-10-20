@@ -10,17 +10,17 @@
 // point operations. Like SHEInt, SHEFp is a general class with
 // subclasses implementing specific sizes
 //
-//
-//
 
-#ifdef __NO_LONG_DOUBLE_MATH
-typdef double shemaxfloat_t;
+#if !defined(SHEFP_ENABLE_LONG_DOUBLE) || defined(__NO_LONG_DOUBLE_MATH)
+typedef double shemaxfloat_t;
 #define shemaxfloat_frexp(x,y) frexp(x,y)
 #define shemaxfloat_pow(x,y) pow(x,y)
+#define SHEFP_SNAN SNAN
 #else
-typdef long double shemaxfloat_t;
+typedef long double shemaxfloat_t;
 #define shemaxfloat_frexp(x,y) frexpl(x,y)
 #define shemaxfloat_pow(x,y) powl(x,y)
+#define SHEFP_SNAN SNANL
 #endif
 
 
@@ -39,8 +39,6 @@ private:
   SHEInt sign;
   SHEInt exp;
   SHEInt mantissa;
-  int baseExpSize;
-  int baseMantissaSize;
   char labelBuf[SHEINT_MAX_LABEL_SIZE];
   // helper
   // setNextLabel lies about const since it's basically a caching function
@@ -58,7 +56,11 @@ protected:
   // used so the parent can reset the bit sizes to the proper native values to
   // those of the child class.
   virtual void resetNative(void) const { } // parent has no native values
-  normalize(int expSize, int mantissaSize);
+  void normalize(void);
+  void denormalize(const SHEInt &targetexp);
+  // raw GT comparison that ignores Nans
+  SHEBool rawGT(const SHEFp &a) const; 
+  SHEBool rawGE(const SHEFp &a) const; 
 
 public:
    static constexpr std::string_view typeName = "SHEFp";
@@ -69,7 +71,7 @@ public:
   { if (label) { labelHash[this] = label; } }
   SHEFp(const SHEFp &a) :
      sign(a.sign), exp(a.exp), mantissa(a.mantissa)  {}
-  SHEInt &operator=(const SHEFp &a)
+  SHEFp &operator=(const SHEFp &a)
   { sign = a.sign;
     exp = a.exp;
     mantissa = a.mantissa;
@@ -77,11 +79,10 @@ public:
     return *this;
   }
    
-  // create a SHEInt using the context and size of a module SHEInt 
+  // create a SHEFp using the context and size of a module SHEFp 
   SHEFp(const SHEFp &model, shemaxfloat_t a, const char *label=nullptr);
-  SHEFp(const SHEInt &a, const char *label=nullptr);
   // read an int from the stream
-  SHEFp(const SHEPublicKey &pubkey,std::istream &str,
+  SHEFp(const SHEPublicKey &pubkey, std::istream &str,
          const char *label=nullptr);
   // arithmetic operators
   SHEFp operator-(void) const;
@@ -90,27 +91,26 @@ public:
   SHEFp operator-(const SHEFp &a) const;
   SHEFp operator*(const SHEFp &a) const;
   SHEFp operator/(const SHEFp &a) const;
-  SHEfp operator+(long shemaxfloat_t a) const;
-  SHEfp operator-(long shemaxfloat_t a) const;
-  SHEfp operator*(long shemaxfloat_t a) const;
-  SHEfp operator/(long shemaxfloat_t a) const;
-  SHEfp &operator+=(const SHEInt &a);
-  SHEfp &operator-=(const SHEInt &a);
-  SHEfp &operator*=(const SHEInt &a);
-  SHEfp &operator/=(const SHEInt &a);
-  SHEfp &operator+=(uint64_t a);
-  SHEfp &operator-=(uint64_t a);
-  SHEfp &operator*=(uint64_t a);
-  SHEfp &operator/=(uint64_t a);
-  SHEfp &operator++(void);
-  SHEfp &operator--(void);
-  SHEfp operator++(int);
-  SHEfp operator--(int);
+  SHEFp operator+(shemaxfloat_t a) const;
+  SHEFp operator-(shemaxfloat_t a) const;
+  SHEFp operator*(shemaxfloat_t a) const;
+  SHEFp operator/(shemaxfloat_t a) const;
+  SHEFp &operator+=(const SHEFp &a);
+  SHEFp &operator-=(const SHEFp &a);
+  SHEFp &operator*=(const SHEFp &a);
+  SHEFp &operator/=(const SHEFp &a);
+  SHEFp &operator+=(shemaxfloat_t a);
+  SHEFp &operator-=(shemaxfloat_t a);
+  SHEFp &operator*=(shemaxfloat_t a);
+  SHEFp &operator/=(shemaxfloat_t a);
+  SHEFp &operator++(void);
+  SHEFp &operator--(void);
+  SHEFp operator++(int);
+  SHEFp operator--(int);
   // logical operators
   // these return either an encrypted 1 or an encrypted 0
   // the results can't be directly checked in an if, they
   // can only affect the output a a select call.
-  SHEBool operator(void) const;
   SHEBool operator!(void) const;
   SHEBool operator<(const SHEFp &a) const;
   SHEBool operator>(const SHEFp &a) const;
@@ -127,9 +127,10 @@ public:
   SHEBool isZero(void) const;
   SHEBool isNotZero(void) const;
   SHEBool isNegative(void) const;
-  SHEBool isNonNegative(void) const;
   SHEBool isPositive(void) const;
-  SHEBool isNonPositive(void) const;
+  SHEBool isSpecial(void) const;
+  SHEBool isNan(void) const;
+  SHEBool isInf(void) const;
   // Operatator ? : can't be overridden,
   // so a?b:c becomes a.select(b,c)
   // handle all flavors where b and c are random mix of unencrypted
@@ -159,12 +160,12 @@ public:
   double securityLevel(void) const;
   bool isCorrect(void) const;
   bool needRecrypt(long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const;
-  bool needRecrypt(const SHEInt &a,
+  bool needRecrypt(const SHEFp &a,
                    long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const;
   void verifyArgs(long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
-  void verifyArgs(SHEInt &a, long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
+  void verifyArgs(SHEFp &a, long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
   void reCrypt(void);
-  void reCrypt(SHEInt &a);
+  void reCrypt(SHEFp &a);
 
 #ifdef DEBUG
   static void setDebugPrivateKey(SHEPrivateKey &privKey) 
@@ -198,12 +199,12 @@ private:
 #endif
 public:
    SHEFpSummary(const SHEFpSummary &summary) : shefp(summary.shefp) {}
-   SHEFpSummary(const SHEfp &shefp_) : shefp(shefp_) {}
+   SHEFpSummary(const SHEFp &shefp_) : shefp(shefp_) {}
    friend std::ostream &operator<<(std::ostream&, const SHEFpSummary&);
 };
 
 
-// overload integer(unencrypted) [op] SHEInt, so we get the same results
+// overload integer(unencrypted) [op] SHEFp, so we get the same results
 // even if we swap the unencrypted and encrypted values. We can implent most 
 // of them using either communitive values, or communitive identities
 inline SHEFp operator+(shemaxfloat_t a, const SHEFp &b) { return b+a; }
@@ -232,13 +233,13 @@ protected:           \
 public:              \
     static constexpr std::string_view typeName = #name; \
     name(const SHEPublicKey &pubKey, const char *label_=nullptr) : \
-      SHEFp(pubKey, (shemaxfloat_t)0.0, expSize, mattissaSize, label_) {} \
+      SHEFp(pubKey, (shemaxfloat_t)0.0, expSize, mantissaSize, label_) {} \
     name(const SHEPublicKey &pubKey, \
          const unsigned char *encryptedInt, int dataSize, \
          const char *label_=nullptr) : \
             SHEFp(pubKey, encryptedInt, dataSize, label_) { resetNative(); } \
     name(const SHEPublicKey &pubKey, type myfloat, const char *label_=nullptr):\
-            SHEFp(pubKey, (shemaxfloat_t)myfloat, expSize, mattissaSize, label_) {} \
+            SHEFp(pubKey, (shemaxfloat_t)myfloat, expSize, mantissaSize, label_) {} \
     name(const SHEFp &a, const char *label_) : SHEFp(a, label_) \
             { resetNative(); } \
     name(const SHEFp &a) : SHEFp(a) { resetNative(); } \
@@ -258,34 +259,34 @@ public:              \
 // long double if supported, we return what we can
 // on the platform, but the underlying type uses full
 // presision of that type
-#ifdef __HAVE_FLOAT16
+#if __HAVE_FLOAT16
 typedef _Float16 shefloat16_t;
 # else
-typedef float shefloat16_1;
+typedef float shefloat16_t;
 #endif
-#ifdef __HAVE_BFLOAT16
+#if __HAVE_BFLOAT16
 typedef bfloat16 shebfloat16_t;
 #else
-typedef _float16 shebfloat16_t;
+typedef float shebfloat16_t;
 #endif
-#ifdef _HAVE_FLOAT32
+#if _HAVE_FLOAT32
 typedef _Float32 shefloat32_t;
 #else
 typedef float shefloat32_t;
 #endif
-#ifdef _HAVE_FLAT64
-typedef _Float64 shefloat64_t
+#if _HAVE_FLAT64
+typedef _Float64 shefloat64_t;
 #else
-typedef double shefloat64_t
+typedef double shefloat64_t;
 #endif
-#ifdef _HAVE-FLOAT128
-typedef _Float128 shefloat128_t
+#if _HAVE_FLOAT128
+typedef _Float128 shefloat128_t;
 #else
-typedef shemaxfloat_t shefloat128_t
+typedef shemaxfloat_t shefloat128_t;
 #endif
 
-NEW_FP_CLASS(SHEHalfFloat,     shefloat16,     5,  10)
-NEW_FP_CLASS(SHEBFloat16,      shebfloat16,    8,   7)
+NEW_FP_CLASS(SHEHalfFloat,     shefloat16_t,   5,  10)
+NEW_FP_CLASS(SHEBFloat16,      shebfloat16_t,  8,   7)
 NEW_FP_CLASS(SHEFloat,         shefloat32_t,   8,  23)
 NEW_FP_CLASS(SHEDouble,        shefloat64_t,  11,  52)
 NEW_FP_CLASS(SHEExtendedFloat, shefloat128_t, 15,  64)

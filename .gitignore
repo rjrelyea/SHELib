@@ -1,0 +1,5 @@
+*.o
+libSHELib.a
+SHEEval
+SHEPerf
+SHETest

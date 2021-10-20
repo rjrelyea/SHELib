@@ -11,8 +11,8 @@ CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS -isystem ${HELIB_INCLUDE} -std=
 
 
 #OBJS=SHEKey.o SHEInt.o
-OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o
-LIB=SHELib.a
+OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o SHEFp.o
+LIB=libSHELib.a
 PROG=SHETest SHEPerf SHEEval
 
 all: ${LIB} ${PROG}
@@ -20,22 +20,23 @@ all: ${LIB} ${PROG}
 clean:
 	rm -rf ${OBJS} ${PROG} 
 
-SHELib.a: ${OBJS}
-	ar -r SHELib.a $?
+libSHELib.a: ${OBJS}
+	ar -r $@ $?
 
-SHETest: SHETest.o ${OBJS} ${LIB}
-	g++ -o $@ $< ${OBJS} ${LDFLAGS}
+SHETest: SHETest.o ${LIB}
+	g++ -o $@ $< ${LIB} ${LDFLAGS}
 
-SHEPerf: SHEPerf.o ${OBJS} ${LIB}
-	g++ -o $@ $< ${OBJS} ${LDFLAGS}
+SHEPerf: SHEPerf.o ${LIB}
+	g++ -o $@ $< ${LIB} ${LDFLAGS}
 
-SHEEval: SHEEval.o ${OBJS} ${LIB}
-	g++ -o $@ $< ${OBJS} ${LDFLAGS}
+SHEEval: SHEEval.o ${LIB}
+	g++ -o $@ $< ${LIB} ${LDFLAGS}
 
 .cpp.o:
 	g++ -g -c -o $@ ${CPPFLAGS} $<
 
 SHEContext.o: SHEContext.h
+SHEFp.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEFp.h
 SHEInt.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h
 SHEKey.o: SHEKey.h SHEContext.h SHEMagic.h SHEio.h
 SHEio.o: SHEio.h
