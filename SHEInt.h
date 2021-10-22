@@ -14,7 +14,7 @@
 #define SHEINT_DEFAULT_LEVEL_TRIGGER 80
 // this should be a function we query from the context. It should be
 // the capacity remaining after we complete a recrypt operation.
-#define SHEINT_LEVEL_THRESHOLD 160
+#define SHEINT_LEVEL_THRESHOLD 390
 //#define SHEINT_DEFAULT_NOISE_FACTOR .25
 #define SHEINT_MAX_LABEL_SIZE 16
 // subraction compare is slower, but single bit operation compare
@@ -77,7 +77,7 @@ private:
   // helper
   helib::Ctxt selectBit(const helib::Ctxt &trueBit,
                         const helib::Ctxt &falseBit) const;
-  helib::Ctxt selectArrayBit(const SHEInt index,
+  helib::Ctxt selectArrayBit(const SHEInt &index, int offset, int direction,
                              const helib::Ctxt &defaultBit) const;
   int compareBestSize(int size) const;
   // math
@@ -241,11 +241,13 @@ public:
   int getSize(void) const { return bitSize; }
   bool getUnsigned(void) const { return isUnsigned; };
   bool getExplicitZero(void) const { return isExplicitZero; }
+  const SHEPublicKey &getPublicKey(void) const { return *pubKey; }
   SHEInt getBitHigh(int bit) const {
     SHEInt result(*pubKey, 0, 1, true);
     if ((bit > (bitSize-1)) || (bit < 0) || isExplicitZero) {
       return result;
     }
+    result.expandZero();
     result.encryptedData[0] = encryptedData[bitSize-1-bit];
     return result;
   }
@@ -254,6 +256,7 @@ public:
     if ((bit > (bitSize-1)) || (bit < 0) || isExplicitZero) {
       return result;
     }
+    result.expandZero();
     result.encryptedData[0] = encryptedData[bit];
     return result;
   }
@@ -358,19 +361,14 @@ inline  SHEInt select(const SHEInt &sel, uint64_t a_true,
 inline  SHEInt select(const SHEInt &sel, uint64_t a_true,
                       uint64_t a_false)
        { return sel.select(a_true, a_false); }
+// why macros instead of templates? because we can freely mix
+// constant values in that will select the appropriate select
+// function (SHEFp and float, SHEInt and ints
+#define SHEMAX(x,y) select((x)>(y), x, y)
+#define SHEMIN(x,y) select((x)<(y), x, y)
 // io operators. uses public functions, do no need a friend declaration
 std::istream&operator>>(std::istream&, SHEInt &a);
 std::ostream&operator<<(std::ostream&, const SHEInt &a);
-// function versions of select
-// and encrypted values.
-//SHEInt select(const SHEInt &sel, const SHEInt &a_true, const SHEInt &a_false)
-//{ return sel.select(a_true, a_false); }
-//SHEInt select(const SHEInt &sel, const SHEInt &a_true,      uint64_t a_false)
-//{ return sel.select(a_true, a_false); }
-//SHEInt select(const SHEInt &sel,       uint64_t a_true, const SHEInt &a_false)
-//{ return sel.select(a_true, a_false); }
-//SHEInt select(const SHEInt &sel,       uint64_t a_true,      uint64_t a_false)
-//{ return sel.select(a_true, a_false); }
 
 // now define the various native types
 // would the be better as a template?

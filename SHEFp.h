@@ -8,18 +8,20 @@
 //
 // this class uses the SHEInt class to implement encrypted floating
 // point operations. Like SHEInt, SHEFp is a general class with
-// subclasses implementing specific sizes
-//
+// subclasses implementing specific sizes emulation existing
+// 'native' floating point implementations.
 
 #if !defined(SHEFP_ENABLE_LONG_DOUBLE) || defined(__NO_LONG_DOUBLE_MATH)
 typedef double shemaxfloat_t;
 #define shemaxfloat_frexp(x,y) frexp(x,y)
 #define shemaxfloat_pow(x,y) pow(x,y)
+#define shemaxfloat_abs(x) fabs(x)
 #define SHEFP_SNAN SNAN
 #else
 typedef long double shemaxfloat_t;
 #define shemaxfloat_frexp(x,y) frexpl(x,y)
 #define shemaxfloat_pow(x,y) powl(x,y)
+#define shemaxfloat_abs(x) fabsl(x)
 #define SHEFP_SNAN SNANL
 #endif
 
@@ -141,8 +143,8 @@ public:
                       shemaxfloat_t a_false);
   friend SHEFp select(const SHEInt &b, shemaxfloat_t a_true,
                       const SHEFp &a_false);
-  friend SHEFp select(const SHEInt &b, const SHEFp &model,
-                      shemaxfloat_t a_true, shemaxfloat_t a_false);
+  friend SHEFp select(const SHEInt &b, shemaxfloat_t a_true,
+                      shemaxfloat_t a_false);
   // Accessor functions
   const SHEInt &getSign(void) const { return sign; }
   const SHEInt &getExp(void) const { return exp; }
@@ -153,10 +155,15 @@ public:
    return setNextLabel(); }
   // switch size and signedness
   void reset(int newExpSize, int newMatissaSize);
+  void clear(void) { sign.clear(); exp.clear(); mantissa.clear(); }
   // get the decrypted result given the private key
   shemaxfloat_t decryptRaw(const SHEPrivateKey &privKey) const;
   // bootstrapping help
-  long bitCapacity(void) const;
+  long bitCapacity(void) const
+  { long capacity = sign.bitCapacity();
+    capacity = std::min(capacity, exp.bitCapacity());
+    return std::min(capacity, mantissa.bitCapacity());
+  }
   double securityLevel(void) const;
   bool isCorrect(void) const;
   bool needRecrypt(long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const;
@@ -223,6 +230,38 @@ inline SHEFp operator/(shemaxfloat_t a, const SHEFp &b)
 // io operators. uses public functions, do no need a friend declaration
 std::istream&operator>>(std::istream&, SHEFp &a);
 std::ostream&operator<<(std::ostream&, const SHEFp &a);
+// declare where SHEFpBool can see them..
+SHEFp select(const SHEInt &b, const SHEFp &a_true, const SHEFp &a_false);
+SHEFp select(const SHEInt &b, const SHEFp &a_true, shemaxfloat_t a_false);
+SHEFp select(const SHEInt &b, shemaxfloat_t a_true, const SHEFp &a_false);
+SHEFp select(const SHEInt &b, shemaxfloat_t a_true, shemaxfloat_t a_false);
+
+// allow SHEBool.select(SHEFp, SHEFp) output
+class SHEFpBool : public SHEInt {
+public:
+  SHEFpBool(const SHEInt &a) : SHEInt(a) {}
+  SHEFpBool(const SHEBool &a) : SHEInt(a) {}
+  SHEFp select(const SHEFp &a_true, const SHEFp &a_false) const
+  {
+    const SHEInt &narrow = *this;
+    return ::select(narrow, a_true, a_false);
+  }
+  SHEFp select(const SHEFp &a_true, shemaxfloat_t a_false) const
+  {
+    const SHEInt &narrow = *this;
+    return ::select(narrow, a_true, a_false);
+  }
+  SHEFp select(shemaxfloat_t a_true, const SHEFp &a_false) const
+  {
+    const SHEInt &narrow = *this;
+    return ::select(narrow, a_true, a_false);
+  }
+  SHEFp select(shemaxfloat_t a_true, shemaxfloat_t a_false) const
+  {
+    const SHEInt &narrow = *this;
+    return ::select(narrow, a_true, a_false);
+  }
+};
 
 // now define the various native types
 // would the be better as a template?
@@ -285,10 +324,15 @@ typedef _Float128 shefloat128_t;
 typedef shemaxfloat_t shefloat128_t;
 #endif
 
-NEW_FP_CLASS(SHEHalfFloat,     shefloat16_t,   5,  10)
-NEW_FP_CLASS(SHEBFloat16,      shebfloat16_t,  8,   7)
-NEW_FP_CLASS(SHEFloat,         shefloat32_t,   8,  23)
-NEW_FP_CLASS(SHEDouble,        shefloat64_t,  11,  52)
-NEW_FP_CLASS(SHEExtendedFloat, shefloat128_t, 15,  64)
-NEW_FP_CLASS(SHELongDouble,    shefloat128_t, 15, 112)
+// NOTE: mantissa is 1 greater than the natural format.
+// SHEFp keeps the implicit high bit explicitly.
+// The cost of recontructing it and removing it isn't
+// worth the space savings.
+NEW_FP_CLASS(SHEHalfFloat,     shefloat16_t,   5,  11)
+NEW_FP_CLASS(SHEBFloat16,      shebfloat16_t,  8,   8)
+NEW_FP_CLASS(SHEFloat,         shefloat32_t,   8,  24)
+NEW_FP_CLASS(SHEDouble,        shefloat64_t,  11,  53)
+NEW_FP_CLASS(SHEExtendedFloat, shefloat128_t, 15,  65)
+NEW_FP_CLASS(SHELongDouble,    shefloat128_t, 15, 113)
+
 #endif

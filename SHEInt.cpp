@@ -178,9 +178,6 @@ void SHEInt::reCrypt(void)
   if (log) {
     (*log) << "[Recrypt(" << (SHEIntSummary)*this << ")->" << std::flush;
   }
-  helib::packedRecrypt(wrapper,
-            *(std::vector<helib::zzX> *)pubKey->getUnpackSlotEncoding(),
-            pubKey->getEncryptedArray());
   if (log) {
     (*log) << (SHEIntSummary)*this << "]" << std::flush;
   }
@@ -219,7 +216,8 @@ std::istream& operator>>(std::istream& str, SHEInt& a)
 std::ostream &operator<<(std::ostream& str, const SHEIntSummary &summary)
 {
   long level = summary.sheint.bitCapacity();
-  str << "SHEInt(" <<  summary.sheint.getLabel() << ","
+  std::ios_base::fmtflags saveFlags = str.flags();
+  str << "SHEInt(" <<  summary.sheint.getLabel() << "," << std::dec
       << summary.sheint.getSize() << ","
       << (char *)(summary.sheint.getUnsigned() ? "U" : "S") << ","
       << (char *)(summary.sheint.getExplicitZero() ? "Z" : "E")
@@ -229,6 +227,7 @@ std::ostream &operator<<(std::ostream& str, const SHEIntSummary &summary)
   } else {
     str << level;
   }
+  str.flags(saveFlags);
 
 #ifdef DEBUG
   const SHEPrivateKey *privKey = summary.getPrivateKey();
@@ -466,17 +465,32 @@ helib::Ctxt SHEInt::selectBit(const helib::Ctxt &trueBit,
 }
 
 //
-// return the bit indexed by and encrypted 'index'. This is equivalent to
-// encryptedArray[i], except 'i' is encrypted. if the array index is outside
-// 0..biSize-1 then defaultBit is returnd
+// return the bit indexed by and encrypted 'index+offset'. This is equivalent to
+// encryptedArray[i], except 'i' is encrypted. The use of the unencrypted
+// offset allows the caller to use offset as the loop variable rather than
+// the encrypted index. This allows us to not need to update the encrypted
+// offset every step of the loop which saves time and capacity.
+// If the array index is outside 0..biSize-1 then defaultBit is returned
 //
-helib::Ctxt SHEInt::selectArrayBit(const SHEInt index,
+helib::Ctxt SHEInt::selectArrayBit(const SHEInt &index, int offset,
+                                   int direction,
                                    const helib::Ctxt &defaultBit) const
 {
   SHEInt thisBit(*pubKey, 0, 1, true);
   helib::Ctxt selectedBit = defaultBit;
   for (int i=0; i < bitSize; i++) {
-    selectedBit = (index == i).selectBit(encryptedData[0], selectedBit);
+    int cmpIndex= direction?offset-i:i-offset;
+    if (selectedBit.bitCapacity() < SHEINT_DEFAULT_LEVEL_TRIGGER) {
+      // it's posible we hit the capacity mid loop, recrypt if necessary
+      const helib::PubKey &publicKey = pubKey->getPublicKey();
+      if (log) {
+        (*log) << " -reCrypting selectedBit(" << selectedBit.bitCapacity()
+               << ") at bit " << i << " of" << bitSize << std::endl;
+      }
+      publicKey.reCrypt(selectedBit);
+    }
+    selectedBit = (index == cmpIndex).selectBit(encryptedData[i],
+                                                  selectedBit);
   }
   return selectedBit;
 }
@@ -573,8 +587,9 @@ SHEInt &SHEInt::mulRaw(const SHEInt &a, SHEInt &result) const
 }
 
 // we do the shift by hand rather than use the binaryArithm library here
-// because we want to implement shift in place.
-
+// because we want to implement shift in place. NOTE: shifts using an
+// integer are relatively fast (no Homomorphic operations) and does not
+// reduce capacity!
 void SHEInt::leftShift(uint64_t shift)
 {
   // shift of zero is a noop
@@ -616,19 +631,16 @@ void SHEInt::rightShift(uint64_t shift)
 
 //
 // Shift by an encrypted shift index requires logical operaters.
-
+// Note: unlike integer shifts, these are more expensive in both time
+// (O(bitSize^2) single bit multiplies and a xor) and capacity.
 SHEInt &SHEInt::leftShift(const SHEInt &shift, SHEInt &result) const
 {
   result = *this;
   helib::Ctxt zero(pubKey->getPublicKey());
   zero.clear();
-  SHEInt nextBit(shift);
-  nextBit.isUnsigned=false;
-  nextBit = -shift;
 
-  nextBit += bitSize-1;
   for (int i=bitSize-1; i >= 0; i--) {
-    result.encryptedData[i] = selectArrayBit(nextBit, zero);
+    result.encryptedData[i] = selectArrayBit(shift, i, 1, zero);
   }
   return result;
 }
@@ -640,12 +652,8 @@ SHEInt &SHEInt::rightShift(const SHEInt &shift, SHEInt &result) const
   if (isUnsigned) {
     pad.clear();
   }
-  SHEInt nextBit(shift);
-  nextBit.isUnsigned=false;
-
-  nextBit += bitSize-1;
-  for (int i=bitSize-1; i >= 0; i--) {
-    result.encryptedData[i] = selectArrayBit(nextBit, pad);
+  for (int i=0; i < bitSize; i++) {
+    result.encryptedData[i] = selectArrayBit(shift, i, 0, pad);
   }
   return result;
 }
@@ -657,7 +665,7 @@ SHEInt SHEInt::abs(void) const
 
 //
 // NOTE: divide requires logical operations, so make sure we don't
-// call divide in any of the logicall operation code.
+// call divide in any of the logical operation code.
 //
 // Also Note if divisor is an encrypted zero, we can't detect that case,
 // so it will return incorrect results (quotient=0, remainder=0). Callers are
@@ -701,7 +709,7 @@ SHEInt &SHEInt::udivRaw(const SHEInt &divisor, SHEInt &result, bool mod) const
       remainder.encryptedData[0] = bit;
     }
     // precheck bootstrapping on deep use variables
-    sel.verifyArgs(remainder);
+    sel.verifyArgs(remainder, 160);
     quotient.verifyArgs();
     sel = sel && remainder < divisor;
     dividend.leftShift(1);
@@ -804,55 +812,16 @@ SHEInt SHEInt::operator-(const SHEInt &a) const {
 
 // += and -= operators return the the same size as the 'this' pointer;
 SHEInt &SHEInt::operator+=(const SHEInt &a) {
-  int targetBitSize = bitSize;
-  if (a.isExplicitZero) {
-    return *this;
-  }
-  if (isExplicitZero) {
-    bool targetIsUnsigned = isUnsigned;
-    *this = a;
-    this->reset(targetBitSize, targetIsUnsigned);
-    return *this;
-  }
-  if (a.bitSize == bitSize) {
-    return this->addRaw(a, *this);
-  }
-  if (a.bitSize < bitSize) {
-    SHEInt add2(a);
-    add2.reset(bitSize, a.isUnsigned);
-    return this->addRaw(add2, *this);
-  }
-
-  this->reset(a.bitSize, isUnsigned);
-  this->addRaw(a, *this);
-  this->reset(targetBitSize, isUnsigned);
+  // addRaw doesn't work if the target and the source is the same
+  // value, so do it noarmally with a copy;
+  *this = *this + a;
   return *this;
 }
 
 SHEInt &SHEInt::operator-=(const SHEInt &a) {
-  if (a.isExplicitZero) {
-    return *this;
-  }
-  if (isExplicitZero) {
-    int targetBitSize = bitSize;
-    bool targetIsUnsigned = isUnsigned;
-    *this = -a;
-    this->reset(targetBitSize, targetIsUnsigned);
-    return *this;
-  }
-  if (a.bitSize == bitSize) {
-    return this->subRaw(a, *this);
-  }
-  if (a.bitSize < bitSize) {
-    SHEInt sub2(a);
-    sub2.reset(bitSize, a.isUnsigned);
-    return this->subRaw(sub2, *this);
-  }
-
-  this->reset(a.bitSize, isUnsigned);
-  this->subRaw(a, *this);
-  // don't change the size of this
-  this->reset(bitSize, isUnsigned);
+  // subRaw doesn't work if the target and the source is the same
+  // value, so do it noarmally with a copy;
+  *this = *this -a;
   return *this;
 }
 
@@ -1068,7 +1037,20 @@ SHEInt SHEInt::operator>>(const SHEInt &a) const
     return *this;
   }
   SHEInt result(*this, (uint64_t)0);
+  if (log) {
+    (*log) << (SHEIntSummary) *this << ">>" << (SHEIntSummary) a << "="
+           << std::flush;
+  }
+  if (needRecrypt(a,160)) {
+    SHEInt this_copy(*this);
+    SHEInt a_copy(a);
+    this_copy.verifyArgs(a_copy,160);
+    this_copy.rightShift(a_copy, result);
+    if (log) (*log) << (SHEIntSummary) result << std::endl;
+    return result;
+  }
   rightShift(a, result);
+  if (log) (*log) << (SHEIntSummary) result << std::endl;
   return result;
 }
 
@@ -1081,8 +1063,33 @@ SHEInt SHEInt::operator<<(const SHEInt &a) const
     return *this;
   }
   SHEInt result(*this, (uint64_t)0);
+  if (log) {
+    (*log) << (SHEIntSummary) *this << "<<" << (SHEIntSummary) a << "="
+           << std::flush;
+  }
+  if (needRecrypt(a,160)) {
+    SHEInt this_copy(*this);
+    SHEInt a_copy(a);
+    this_copy.verifyArgs(a_copy,160);
+    this_copy.leftShift(a_copy, result);
+    if (log) (*log) << (SHEIntSummary) result << std::endl;
+    return result;
+  }
   leftShift(a,result);
+  if (log) (*log) << (SHEIntSummary) result << std::endl;
   return result;
+}
+
+SHEInt &SHEInt::operator>>=(const SHEInt &a)
+{
+  *this = *this >> a;
+  return *this;
+}
+
+SHEInt &SHEInt::operator<<=(const SHEInt &a)
+{
+  *this = *this << a;
+  return *this;
 }
 
 SHEInt SHEInt::operator>>(uint64_t a) const
@@ -1556,9 +1563,16 @@ SHEInt SHEInt::select(const SHEInt &a_true, const SHEInt &a_false) const
     return isNotZero().select(a_true, a_false);
   }
   SHEInt mask(*this);
+  mask.verifyArgs();
   mask.reset(std::max(a_true.bitSize,a_false.bitSize), false);
   mask.isUnsigned = a_true.isUnsigned || a_false.isUnsigned;
-  return (mask&a_true) | ((~mask)&a_false);
+  // if we need to handle preemptive recrypt, do the copy now
+  if (a_true.needRecrypt(a_false)) {
+    SHEInt r_true(a_true), r_false(a_false);
+    r_true.verifyArgs(r_false);
+    return (mask&r_true) ^ ((~mask)&r_false);
+  }
+  return (mask&a_true) ^ ((~mask)&a_false);
 }
 
 SHEInt SHEInt::select(const SHEInt &a_true, uint64_t a_false) const
@@ -1570,9 +1584,18 @@ SHEInt SHEInt::select(const SHEInt &a_true, uint64_t a_false) const
     return isNotZero().select(a_true, a_false);
   }
   SHEInt mask(*this);
+  if (mask.needRecrypt(a_true)) {
+    SHEInt r_true(a_true);
+    mask.verifyArgs(r_true);
+    mask.reset(a_true.bitSize, false);
+    mask.isUnsigned = a_true.isUnsigned;
+    return (mask&r_true) ^ ((~mask)&a_false);
+  }
   mask.reset(a_true.bitSize, false);
   mask.isUnsigned = a_true.isUnsigned;
-  return (mask&a_true) | ((~mask)&a_false);
+  // xor is cheaper than or, and it's safe because
+  // one side is guarrenteed to be zero
+  return (mask&a_true) ^ ((~mask)&a_false);
 }
 
 SHEInt SHEInt::select(uint64_t a_true, const SHEInt &a_false) const
@@ -1584,13 +1607,19 @@ SHEInt SHEInt::select(uint64_t a_true, const SHEInt &a_false) const
     return isNotZero().select(a_true, a_false);
   }
   SHEInt mask(*this);
+  if (mask.needRecrypt(a_false)) {
+    SHEInt r_false(a_false);
+    mask.verifyArgs(r_false);
+    mask.reset(a_false.bitSize, false);
+    mask.isUnsigned = a_false.isUnsigned;
+    return (mask&a_true) ^ ((~mask)&r_false);
+  }
   mask.reset(a_false.bitSize, false);
   mask.isUnsigned = a_false.isUnsigned;
-  return (mask&a_true) | ((~mask)&a_false);
+  return (mask&a_true) ^ ((~mask)&a_false);
 }
 
-int
-getBitSize(int64_t a)
+inline static int getBitSize(int64_t a)
 {
   int i;
   int64_t topBit = a&(1ULL<<63);
@@ -1613,8 +1642,9 @@ SHEInt SHEInt::select(uint64_t a_true, uint64_t a_false) const
     return isNotZero().select(a_true, a_false);
   }
   SHEInt mask(*this);
+  mask.verifyArgs();
   mask.reset(size, false); // reset sign extends
-  return (mask&a_true) | ((~mask)&a_false);
+  return (mask&a_true) ^ ((~mask)&a_false);
 }
 
 

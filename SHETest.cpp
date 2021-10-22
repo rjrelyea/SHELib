@@ -6,10 +6,28 @@
 #include "SHEInt.h"
 #include "SHETime.h"
 #include "SHEVector.h"
+#include "SHEFp.h"
 
 // set this define to turn off testing of div and mod operators
-//#define SHE_SKIP_DIV
-#define NUM_TESTS 15
+//#define SHE_SKIP_DIV 1
+#define SHE_USE_HALF_FLOAT 1
+//#define SHE_FLOAT_MISMATCHED_PRECISION 1
+#ifdef SHE_USE_HALF_FLOAT
+#define SHE_FLOAT_MISMATCHED_PRECISION 1
+#endif
+#define NUM_TESTS 19
+#define FLOAT_TESTS 9
+// we don't have native halfword foating point to compare our
+// results with, so we have to compare with a higher precision
+// implementation, which means they won't match exactly
+
+#ifdef SHE_FLOAT_MISMATCHED_PRECISION
+#define F_epsilon .003   // mult and divide amplify errors
+#define FLOAT_CMP_EQ(f,g) ( fabs(g) < F_epsilon ? fabs(f) < F_epsilon : \
+                            fabs(((f)-(g))/(g)) < F_epsilon )
+#else
+#define FLOAT_CMP_EQ(f,g) ((f) == (g))
+#endif
 int main(int argc, char **argv)
 {
   SHEPublicKey pubkey;
@@ -18,34 +36,48 @@ int main(int argc, char **argv)
   int failed = 0;
   int tests = 0;
 
+#ifdef notdef
+  // logging options
   SHEContext::setLog(std::cout);
   SHEPublicKey::setLog(std::cout);
   SHEPrivateKey::setLog(std::cout);
-#ifdef notdef
   SHEInt::setLog(std::cout);
+  SHEFp::setLog(std::cout);
 #endif
 
 
   SHEGenerate_BinaryKey(privkey, pubkey, 19);
 #ifdef DEBUG
   SHEInt::setDebugPrivateKey(privkey);
+  SHEFp::setDebugPrivateKey(privkey);
 #endif
 
   int16_t a,b,c,d,z;
+  int8_t i;
   int16_t r[NUM_TESTS];
   uint16_t ua,ub,uc,ud,uz;
   uint16_t ur[NUM_TESTS];
+  uint8_t ui;
+  float fa,fb,fc,fd,fz;
+  float fr[FLOAT_TESTS];
 
   a = -14;
   b = 7;
   c = 25;
   d = -5;
   z = 0;
+  i = 7;
   ua = (uint16_t)a;
   ub = (uint16_t)b;
   uc = (uint16_t)c;
   ud = (uint16_t)d;
   uz = (uint16_t)z;
+  ui = (uint8_t)i;
+  fa = -14.0;
+  fb = 7.7;
+  fc = 1.4e-3;
+  fd = 2.5e3;
+  fz = 0.0;
 
   std::cout << "------------------------ encrypting" << std::endl;
   timer.start();
@@ -54,19 +86,42 @@ int main(int argc, char **argv)
   SHEInt16 ec(pubkey,c,"c");
   SHEInt16 ed(pubkey,d,"d");
   SHEInt16 ez(pubkey,z,"z");
+  SHEInt8  ei(pubkey,i,"i");
   SHEUInt16 eua(pubkey,ua,"ua");
   SHEUInt16 eub(pubkey,ub,"ub");
   SHEUInt16 euc(pubkey,uc,"uc");
   SHEUInt16 eud(pubkey,ud,"ud");
   SHEUInt16 euz(pubkey,uz,"uz");
+  SHEUInt8  eui(pubkey,ui,"ui");
+#ifdef SHE_USE_HALF_FLOAT
+  SHEHalfFloat efa(pubkey,fa,"fa");
+  SHEHalfFloat efb(pubkey,fb,"fb");
+  SHEHalfFloat efc(pubkey,fc,"fc");
+  SHEHalfFloat efd(pubkey,fd,"fd");
+  SHEHalfFloat efz(pubkey,fz,"fd");
+#else
+  SHEFloat efa(pubkey,fa,"fa");
+  SHEFloat efb(pubkey,fb,"fb");
+  SHEFloat efc(pubkey,fc,"fc");
+  SHEFloat efd(pubkey,fd,"fd");
+  SHEFloat efz(pubkey,fz,"fd");
+#endif
   SHEVector<SHEInt16> er(ez,NUM_TESTS);
   SHEVector<SHEUInt16> eur(euz,NUM_TESTS);
+#ifdef SHE_USE_HALF_FLOAT
+  SHEVector<SHEHalfFloat> efr(efz,FLOAT_TESTS);
+#else
+  SHEVector<SHEFloat> efr(efz,FLOAT_TESTS);
+#endif
   timer.stop();
   std::cout << " encrypt time = " << timer.elapsedMilliseconds()
             << " ms" << std::endl;
 
   int16_t da,db,dc,dd,dz;
+  int8_t di;
   uint16_t dua,dub,duc,dud,duz;
+  uint8_t dui;
+  float dfa,dfb,dfc,dfd,dfz;
   timer.start();
   std::cout << "------------------------ decrypting"  << std::endl;
   da = ea.decrypt(privkey);
@@ -74,45 +129,73 @@ int main(int argc, char **argv)
   dc = ec.decrypt(privkey);
   dd = ed.decrypt(privkey);
   dz = ez.decrypt(privkey);
+  di = ei.decrypt(privkey);
   dua = eua.decrypt(privkey);
   dub = eub.decrypt(privkey);
   duc = euc.decrypt(privkey);
   dud = eud.decrypt(privkey);
   duz = euz.decrypt(privkey);
+  dui = eui.decrypt(privkey);
+  dfa = efa.decrypt(privkey);
+  dfb = efb.decrypt(privkey);
+  dfc = efc.decrypt(privkey);
+  dfd = efd.decrypt(privkey);
+  dfz = efz.decrypt(privkey);
   timer.stop();
   std::cout << " decrypt time = " << timer.elapsedMilliseconds()
             << " ms" << std::endl;
 
   std::cout << "-------------decrypted inputs\n" << std::endl;
-  std::cout << "a=" << a << "da=" << da ;
+  std::cout << "a=" << a << " da=" << da ;
   if (a != da) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "b=" << b << "db=" << db;
+  std::cout << "b=" << b << " db=" << db;
   if (b != db) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "c=" << c << "dc=" << dc;
+  std::cout << "c=" << c << " dc=" << dc;
   if (c != dc) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "d=" << d << "dd=" << dd;
+  std::cout << "d=" << d << " dd=" << dd;
   if (d != dd) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "z=" << z << "dz=" << dz;
+  std::cout << "z=" << z << " dz=" << dz;
   if (z != dz) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "ua=" << ua << "dua=" << dua;
+  std::cout << "i=" << (int)i << " di=" << (int)di;
+  if (i != di) { failed++; std::cout << " FAILED"; }
+  tests++; std::cout << std::endl;
+  std::cout << "ua=" << ua << " dua=" << dua;
   if (ua != dua) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "ub=" << ub << "dub=" << dub;
+  std::cout << "ub=" << ub << " dub=" << dub;
   if (ub != dub) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "uc=" << uc << "duc=" << duc;
+  std::cout << "uc=" << uc << " duc=" << duc;
   if (uc != duc) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "ud=" << ud << "dud=" << dud;
+  std::cout << "ud=" << ud << " dud=" << dud;
   if (ud != dud) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "uz=" << uz << "duz=" << duz;
+  std::cout << "uz=" << uz << " duz=" << duz;
   if (uz != duz) { failed++; std::cout << " FAILED"; }
+  tests++; std::cout << std::endl;
+  std::cout << "ui=" << (unsigned) ui << " dui=" << (unsigned) dui;
+  if (ui != dui) { failed++; std::cout << " FAILED"; }
+  tests++; std::cout << std::endl;
+  std::cout << "fa=" << fa << " dfa=" << dfa;
+  if (!FLOAT_CMP_EQ(fa, dfa)) { failed++; std::cout << " FAILED"; }
+  tests++; std::cout << std::endl;
+  std::cout << "fb=" << fb << " dfb=" << dfb;
+  if (!FLOAT_CMP_EQ(fb, dfb)) { failed++; std::cout << " FAILED"; }
+  tests++; std::cout << std::endl;
+  std::cout << "fc=" << fc << " dfc=" << dfc;
+  if (!FLOAT_CMP_EQ(fc, dfc)) { failed++; std::cout << " FAILED"; }
+  tests++; std::cout << std::endl;
+  std::cout << "fd=" << fd << " dfd=" << dfd;
+  if (!FLOAT_CMP_EQ(fd, dfd)) { failed++; std::cout << " FAILED"; }
+  tests++; std::cout << std::endl;
+  std::cout << "fz=" << fz << " dfz=" << dfz;
+  if (fz != dfz) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
 
   // basic add, subtract & multiply
@@ -141,7 +224,14 @@ int main(int argc, char **argv)
   r[13] = d - c;
 #endif
   // variable access array
-  r[14] = r[b];
+  r[14] = r[i];
+  // encrypted index shift
+  r[15] = a >> i;
+  r[16] = a;
+  r[16] >>= i;
+  r[17] = a << i;
+  r[18] = d;
+  r[18] <<= i;
 
   // unsigned equivalences
   ur[z] = ub;
@@ -163,7 +253,29 @@ int main(int argc, char **argv)
   ur[12] = ua + ub;
   ur[13] = ud - uc;
 #endif
-  ur[14] = ur[b];
+  ur[14] = ur[ui];
+  ur[15] = ua >> ui;
+  ur[16] = ua;
+  ur[16] >>= ui;
+  ur[17] = ua << ui;
+  ur[18] = ud;
+  ur[18] <<= ui;
+
+  // floating point operations
+  fr[z] = fb;
+  fr[1] = fa * fb;
+  fr[2] = fa + fb;
+  fr[3] = fa - fb;
+  fr[4] = (fa > fb) && (fc < fd) ? fa : fb;
+#ifndef SHE_SKIP_DIV
+  fr[5] = fa/fb;
+  fr[6] = fc/fd;
+#else
+  fr[5] = fc+fd;
+  fr[6] = fc*fd;
+#endif
+  fr[7] = fa*fb - fc*fd;
+  fr[8] = fr[b];
 
   // check the streaming interface for saving and restoring keys and ints
   std::fstream save;
@@ -411,14 +523,48 @@ int main(int argc, char **argv)
             << (PrintTime) timer.elapsedMilliseconds() << std::endl;
   std::cout << " er[13] (mod) " << r[13] << "=?" << er[13].decrypt(privkey)
             << std::endl;
-  std::cout << " calculating er[14] = er[eb]" << std:: endl;
+  std::cout << " calculating er[14] = er[ei]" << std:: endl;
   timer.start();
-  er[14] = er[eb];
+  er[14] = er[ei];
   std::cout << " er[14] (array access) time = "
             << (PrintTime) timer.elapsedMilliseconds() << std::endl;
   std::cout << " er[14] (array access) " << r[14] << "=?"
             << er[14].decrypt(privkey)
             << std::endl;
+  std::cout << " calculating er[15] = ea >> ei" << std:: endl;
+  timer.start();
+  er[15] = ea >> ei;
+  timer.stop();
+  std::cout << " er[15] (encrypted shift) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " er[15] (encrypted shift) " << std::hex << r[15] << "=?"
+            << er[15].decrypt(privkey) << std::dec << std::endl;
+  std::cout << " calculating er[16] >>= eb" << std:: endl;
+  timer.start();
+  er[16] = ea;
+  er[16] >>=  ei;
+  timer.stop();
+  std::cout << " er[16] (encrypted shift) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " er[16] (encrypted shift) " << std::hex << r[16] << "=?"
+            << er[16].decrypt(privkey) << std::dec << std::endl;
+  std::cout << " calculating er[17] = ea << ei" << std:: endl;
+  timer.start();
+  er[17] = ea << ei;
+  timer.stop();
+  std::cout << " er[17] (encrypted shift) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " er[17] (encrypted shift) " << std::hex << r[17] << "=?"
+            << er[17].decrypt(privkey) << std::dec << std::endl;
+  std::cout << " calculating er[18] <<= ei" << std:: endl;
+  timer.start();
+  er[18] = ed;
+  er[18] <<=  ei;
+  timer.stop();
+  std::cout << " er[18] (encrypted shift) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " er[18] (encrypted shift) " << std::hex << r[18] << "=?"
+            << er[18].decrypt(privkey) << std::dec << std::endl;
 
   std::cout << " calculating eur[euz] =  eub" << std:: endl;
   timer.start();
@@ -548,28 +694,164 @@ int main(int argc, char **argv)
 #else
   eur[13] = eud - euc;
 #endif
+  timer.stop();
   std::cout << " eur[13] (mod) time = "
             << (PrintTime) timer.elapsedMilliseconds() << std::endl;
   std::cout << " eur[13] (mod) " << ur[13] << "=?" << eur[13].decrypt(privkey)
             << std::endl;
-  std::cout << " calculating eur[14] = eur[eub]" << std:: endl;
+  std::cout << " calculating eur[14] = eur[eui]" << std:: endl;
   timer.start();
-  eur[14] = eur[eub];
-  std::cout << " eur[14] (mod) time = "
+  eur[14] = eur[eui];
+  timer.stop();
+  std::cout << " eur[14] (array access) time = "
             << (PrintTime) timer.elapsedMilliseconds() << std::endl;
-  std::cout << " eur[14] (mod) " << ur[14] << "=?" << eur[14].decrypt(privkey)
-            << std::endl;
+  std::cout << " eur[14] (array access) " << ur[14] << "=?"
+            << eur[14].decrypt(privkey) << std::endl;
+  std::cout << " calculating eur[15] = eua >> eui" << std:: endl;
+  timer.start();
+  eur[15] = eua >> eui;
+  timer.stop();
+  std::cout << " eur[15] (encrypted shift) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " eur[15] (encrypted shift) " << std::hex << ur[15] << "=?"
+            << eur[15].decrypt(privkey) << std::dec << std::endl;
+  std::cout << " calculating eur[16] >>= eui" << std:: endl;
+  timer.start();
+  eur[16] = eua;
+  eur[16] >>=  eui;
+  timer.stop();
+  std::cout << " eur[16] (encrypted shift) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " eur[16] (encrypted shift) " << std::hex << ur[16] << "=?"
+            << eur[16].decrypt(privkey) << std::dec << std::endl;
+  std::cout << " calculating eur[17] = eua << eui" << std:: endl;
+  timer.start();
+  eur[17] = eua << eui;
+  timer.stop();
+  std::cout << " eur[17] (encrypted shift) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " eur[17] (encrypted shift) " << std::hex << ur[17] << "=?"
+            << eur[17].decrypt(privkey) << std::dec << std::endl;
+  std::cout << " calculating eur[18] <<= ei" << std:: endl;
+  timer.start();
+  eur[18] = ed;
+  eur[18] <<=  ei;
+  timer.stop();
+  std::cout << " eur[18] (encrypted shift) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " eur[18] (encrypted shift) " << std::hex << ur[18] << "=?"
+            << eur[18].decrypt(privkey) << std::dec << std::endl;
+
+  std::cout << " calculating efr[ez] = efb" << std:: endl;
+  timer.start();
+  efr.assign(ez,efb);
+  timer.stop();
+  std::cout << " efr[ez] (array set) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " efr[ez] (array set) " << fr[z] << "=?"
+            << efr[ez].decrypt(privkey) << std::endl;
+  std::cout << " calculating efr[1] = efa * efb" << std:: endl;
+  timer.start();
+  efr[1] = efa * efb;
+  timer.stop();
+  std::cout << " efr[1] (float op) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " efr[1] (float op) " << fr[1] << "=?"
+            << efr[1].decrypt(privkey) << std::endl;
+  std::cout << " calculating efr[2] = efa + efb" << std:: endl;
+  timer.start();
+  efr[2] = efa + efb;
+  timer.stop();
+  std::cout << " efr[2] (float op) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " efr[2] (float op) " << fr[2] << "=?"
+            << efr[2].decrypt(privkey) << std::endl;
+  std::cout << " calculating efr[3] = efa - efb" << std:: endl;
+  timer.start();
+  efr[3] = efa - efb;
+  timer.stop();
+  std::cout << " efr[3] (float op) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " efr[3] (float op) " << fr[3] << "=?"
+            << efr[3].decrypt(privkey) << std::endl;
+  std::cout << " calculating efr[4] = (efa > efb) && (efc < efd) ? efa : efb"
+            << std:: endl;
+  timer.start();
+  efr[4] = select((efa > efb) && (efc < efd), efa ,efb);
+  timer.stop();
+  std::cout << " efr[4] (float op) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " efr[4] (float op) " << fr[4] << "=?"
+            << efr[4].decrypt(privkey) << std::endl;
+#ifndef SHE_SKIP_DIV
+  std::cout << " calculating efr[5] = efa / efb" << std:: endl;
+#else
+  std::cout << " calculating efr[5] = efc + efd" << std:: endl;
+#endif
+  timer.start();
+#ifndef SHE_SKIP_DIV
+  efr[5] = efa / efb;
+#else
+  efr[5] = efc + efd;
+#endif
+  timer.stop();
+  std::cout << " efr[5] (float op) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " efr[5] (float op) " << fr[5] << "=?"
+            << efr[5].decrypt(privkey) << std::endl;
+#ifndef SHE_SKIP_DIV
+  std::cout << " calculating efr[6] = efc / efd" << std:: endl;
+#else
+  std::cout << " calculating efr[6] = efc * efd" << std:: endl;
+#endif
+  timer.start();
+#ifndef SHE_SKIP_DIV
+  efr[6] = efc / efd;
+#else
+  efr[6] = efc * efd;
+#endif
+  timer.stop();
+  std::cout << " efr[6] (float op) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " efr[6] (float op) " << fr[6] << "=?"
+            << efr[6].decrypt(privkey) << std::endl;
+  std::cout << " calculating efr[7] = efa*efb - efc*efd" << std:: endl;
+  timer.start();
+  efr[7] = efa*efb - efc*efd;
+  timer.stop();
+  std::cout << " efr[7] (float op) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " efr[7] (float op) " << fr[7] << "=?"
+            << efr[7].decrypt(privkey) << std::endl;
+  std::cout << " calculating efr[8] = efr[b]" << std:: endl;
+  timer.start();
+  efr[8] = efr[b];
+  timer.stop();
+  std::cout << " efr[8] (float op) time = "
+            << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << " efr[8] (float op) " << fr[8] << "=?"
+            << efr[8].decrypt(privkey) << std::endl;
 
   int16_t dr[NUM_TESTS];
   uint16_t dur[NUM_TESTS];
+  float dfr[FLOAT_TESTS];
 
   std::cout << "-----------------------------decrypting results" << std::endl;
   timer.start();
   for (int i = 0; i < er.size(); i++) {
+    std::cout << "er[" << i << "].bitCapacity: " << er[i].bitCapacity()
+              << std::endl;
     dr[i] = er[i].decrypt(privkey);
   }
   for (int i = 0; i < eur.size(); i++) {
+    std::cout << "eur[" << i << "].bitCapacity: " << eur[i].bitCapacity()
+              << std::endl;
     dur[i] = eur[i].decrypt(privkey);
+  }
+  for (int i = 0; i < efr.size(); i++) {
+    std::cout << "efr[" << i << "].bitCapacity: " << efr[i].bitCapacity()
+              << std::endl;
+    dfr[i] = efr[i].decrypt(privkey);
   }
   timer.stop();
   std::cout << " decrypt time = "
@@ -577,7 +859,7 @@ int main(int argc, char **argv)
 
   std::cout << "-------------decrypted outputs verse originals\n" << std::endl;
   for (int i = 0; i < NUM_TESTS; i++) {
-    std::cout << "r[" << i << "]=" << r[i] << " dr[" << i << "]= " << dr[i]
+    std::cout << "r[" << i << "]=" << r[i] << " dr[" << i << "]=" << dr[i]
               << " ";
     if (r[i] == dr[i]) {
       std::cout << "PASS";
@@ -587,9 +869,19 @@ int main(int argc, char **argv)
     tests++; std::cout << std::endl;
   }
   for (int i = 0; i < NUM_TESTS; i++) {
-    std::cout << "ur[" << i << "]=" << ur[i] << " dur[" << i << "]= "
+    std::cout << "ur[" << i << "]=" << ur[i] << " dur[" << i << "]="
               << dur[i] << " ";
     if (ur[i] == dur[i]) {
+      std::cout << "PASS";
+    } else {
+      failed++; std::cout << "FAIL";
+    }
+    tests++; std::cout << std::endl;
+  }
+  for (int i = 0; i < FLOAT_TESTS; i++) {
+    std::cout << "fr[" << i << "]=" << fr[i] << " dfr[" << i << "]="
+              << dfr[i] << " ";
+    if (FLOAT_CMP_EQ(fr[i],dfr[i])) {
       std::cout << "PASS";
     } else {
       failed++; std::cout << "FAIL";

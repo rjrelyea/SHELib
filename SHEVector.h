@@ -9,7 +9,7 @@
 #include <helib/helib.h>
 #include "SHEInt.h"
 
-// T can be any class that is a target or source of a select
+// T can be any class that is a target or source of a select(SHEInt, T, T)
 // function (SHEInt and subclasses, SHEString and subclasses, SHEFp and
 // subclasses, etc.)
 template<class T>
@@ -43,7 +43,7 @@ public:
     T retVal(model);
     std::vector<T> &narrow = *this;
     for (int i=0; i < narrow.size(); i++) {
-      retVal = select((i == index),narrow.at(i),retVal);
+      retVal = select(i == index, narrow.at(i), retVal);
     }
     return retVal;
   }
@@ -52,7 +52,7 @@ public:
   {
     std::vector<T> &narrow = *this;
     for (int i=0; i < narrow.size(); i++) {
-      narrow[i] = (i == index).select(value, narrow[i]);
+      narrow[i] = select(i == index, value, narrow[i]);
     }
     return;
   }
