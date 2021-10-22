@@ -1,0 +1,13 @@
+- Add operation level to to fetching a context.
+- Add bootstrapping tracker to SHEInt and SHEFp
+- Add SHEString
+- Add Debugging Summary to SHEVector
+- Complete the GenericContext code
+- Add Vector operations
+   - use slots in SHEInt to intialize it with a vector.
+   - disable packed recrypt when using vectors.
+   - export SHEInt as vectors.
+   - Add vector support to SHEFp (same plan as SHEInt)
+   - Add vector support to SHEString
+- Add Support for non-binary BGV contexts
+- Add Support for CVV
