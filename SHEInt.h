@@ -55,7 +55,7 @@
 //  (which isn most cases is unavailable).
 //
 //
-
+#include "SHEConfig.h"
 class SHEInt;
 typedef std::unordered_map<const SHEInt *,const char *>SHEIntLabelHash;
 

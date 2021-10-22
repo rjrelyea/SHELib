@@ -22,14 +22,48 @@ to provide homomorphic services. It is the "assembler" level of doing
 homomorphic encryption, with a few higher level features like binArithmetic.
 The latter provides basic functionality like shift, bitwise operations,
 addition, subraction, and multiplication. Using helib requires finding
-correct parameters, and initializing crypto systems with those parameters.
+correct parameters, and initializing crypto systems with those parameters,
+which can be tricky.
 
 The goals of this library is to reduce the complexity of initializing your
 the system and provide C++ like access to underlying homomorphic operations.
 
-Using SHE
+Overall the goals, in order, are:
 
-KeyGeneration and management.
+1. Ease of Use: Encrypted values are represented by C++ classes that mimic
+the C++ builtin types, with operator overrides so you an do math on them
+just like the native types. The compiler precidences work, non-bool value
+will take on bool values in logical expression (1=non-zero, 0=0).
+  - this means much of the details of helib are hidden, and while you
+    can get the underlying helib data structures, you usually don't have
+    to.
+  - as much as possible, your standard programming will work (with the
+    notable exception of comparison, which returns an encrypted value
+    that cannot affect your program flow (see more below).
+
+2. Correct and fully functioning:  The goal is that anything that you can possibly
+do with the builtins, you should be able to do with the Encrypted values,
+except you can't cast encrypted values to unencrypted values (so you can't
+get a bool, or instance from a comparision).
+  - this means that integer division is included, even if it could take
+    hours or days to complete.
+  - encrypted int64 types are allowed, even though they would take hours
+    to do basic operations.
+  - bootstrapping (see below) is implemented automatically so you don't
+    have to worry about it in your initial implementation (even if it
+    slows down performance.
+
+3. Perfomance: This is goal 3. This means if there are two ways of doing
+   something, one way is significantly slower, but produces the correct
+   results and the other way is faster, but sometimes hits corner cases.
+   I've chosen correctness. That being said, I will usually try to chose
+   the method that provides optimal performance. I've also provided
+   access to methods the application programmer can use to optimize their
+   implementation.
+
+------------------------- Using SHELib -------------------------------------
+
+            KeyGeneration and management.
 
 To use SHE, you first need to get a keypair. This keyPair is generated using
 the SHEGenerate_KeyPair(), which takes a type, a security level, and an
@@ -47,9 +81,9 @@ encrypted data.
 NOTE: in production, only the client needs to generate a keypair, the server
 just accepts publicKey along with the encrypted data.
 
-Integer operations.
+            Integer operations.
 
-Encrypted data is stored in various SHEInt classes: SHEInt8, SHEInt16, 
+Encrypted data is stored in various SHEInt classes: SHEInt8, SHEInt16,
 SHEInt32, SHEInt64, SHEUInt8, SHEUInt16, SHEUInt32, SHEUInt64and SHEBool. These
 correspond the the C++ types int8_t, int16_t, int32_t, int64_t, uint8_t,
 uint16_t, uint32_t, uint64_t, and bool respectively
@@ -83,7 +117,7 @@ query the result (unless you decrypt it). What you can do is use the result
 to select a value:
   r = (a==b).select(10, 5);
 
-or 
+or
   r = select(a==b, 10, 5);
 
 r will get the selected encrypted value (either 10 or 5) depending on the state
@@ -115,7 +149,7 @@ Note: it's important to know the actual maximum bound of the while loop, if,
 in the above example, a is -b.getSize(), then this loop won't execute as
 long as expected an will produce incorrect results.
 
-SHEVector operations.
+            SHEVector operations.
 
 SHEVector allows you to store a vector or array of encrypted values and access
 that array with an encrypted index. In all other ways it functions as a normal
@@ -139,9 +173,9 @@ SHEVectors can store and index any value that has a
 <type>select(const SHEInt &, const <type>&, const <type>&); function.
 Indexes are type SHEInt.
 
-SHEFp operations
+            SHEFp operations
 
-Like SHEInt, SHEFp is a base class used to implement SHEHalfFloat, 
+Like SHEInt, SHEFp is a base class used to implement SHEHalfFloat,
 SHEBFloat16, SHEFloat, SHEDouble, SHEExtendedFloat, and SHELongDouble.
 Like SHEInt, in needs to be initialized with a publicKey either implicitly
 or explicitly. Once you have a float variable, you can assign to it, operate,
@@ -149,19 +183,19 @@ on it, etc. Basic operators +, -, *, and / are defined (returning SHEFp).
 Comparision operators return SHEBool and can be used in a select function:
 
 SHEFp select(&SHEBool sel,const SHEFp &a_true, const SHEFp &a_false);
-version also allow mixing in floating point constants as well. 
+version also allow mixing in floating point constants as well.
 
-SHEString operations
+           SHEString operations
 
 String operations are still under construction
-  
-Performance and bootstrapping.
+
+           Performance and bootstrapping.
 
 While pretty much anything you want to do with Integers and Doubles is support,
 not everything can be done in finite time. While the library 'hides' the
 details of underlying bootstrapping operations, they will quickly become
 appearant in your application. For any real security level, bootstrapping
-large integers, like 64 bits, can take 3-4 hours to complete. So while you
+large integers, like 64 bits, can take 3-8 hours to complete. So while you
 may be able to do some operation in multiple seconds, when you run close to
 the noise limit, they can suddenly take hours. There are a couple of ways to
 mitigate this issue.
@@ -171,7 +205,7 @@ mitigate this issue.
    2) you can use a lower noise tolerance to get faster performance for the
    same security level.
    3) you can reduce your security level.
-   4) you can reduce your integer size.
+   4) you can reduce your variable size.
 
 For almost all usable security levels, SHEInt64 will have extremely poor
 performance. SHEInt16 will have the best compromise of performance and
@@ -182,7 +216,52 @@ preemptively bootstrap those variables before you execute a particular
 function. This is important because you may find that while SHELib can
 automatically bootstrap, it may bootstrap temparary copies, leaving the
 original variable unupdated. Also bootstrapping a variable that may be
-used in multiple locations helps keep
+used in multiple locations helps keep all the variables that depend
+on it from loosing capacity.
 
+           Debugging
+
+You can get logging output from the internals of each component of SHELib
+by providing a stream to the SHExxx::setLog function. Setting the logger
+will cause the function to output various calls to that function. You
+can also output summary information for SHEInt and SHEFp types using
+the SHEIntSummary and SHEFpSummary casts before outputting them to a stream:
+
+   std::cout << "My encrypted vars: " << (SHEIntSummary) myint
+             << ", " << (SHEFpSummary) myfloat << std::endl
+
+For SHEInts you'll get:
+  SHEInt(label, bitSize, isUnsigned, isZero, capacity[:value])
+  where:
+    -label      is the label you set on the variable (temporaries get their own
+                unique 't' label which is set when they are first printed).
+    -bitSize    is the number of encrypted bits of this SHEInt (same as
+                returned from myint.getSize()).
+    -isUnsigned is 'U' for unsigned values and 'S' for signed values.
+    -isZero     is 'Z' if this value is an unencrypted explicit zero, and
+                'E' if this is a properly encrypted value.
+    -capacity   how many 'level's are left before this variable is too
+                noisy to be usefull, MAX means the value is effectively
+                unencrypted and has no noise.
+    -value      is the decrypted value. It's only included if you have set
+                the private key with SHEInt::setDebugPrivateKey(SHEPrivateKey&)
+For SHEFps you'll get:
+  SHEFp(label, expBitSize, mantissaBitSize, capacity[:value])
+    -label       is the label you set on the variable (temporaries get their
+                 own unique 't' label which is set when they are first
+                 printed).
+    -expBitSize  is the number of encrypted bits of exponent (same as
+                 returned from myfloat.getExp().getSize()).
+    -mantBitSize is the number of encrypted bits mantissa (same as
+                 returned from myfloat.getMatissa().getSize()).
+    -capacity    how many 'level's are left before this variable is too
+                 noisy to be useful, MAX means the value is effectively
+                 unencrypted and has no noise.
+    -value       is the decrypted value. It's only included if you have set
+                 the private key with SHEFp::setDebugPrivateKey(SHEPrivateKey&)
+
+If you don't cast the variables, you will get the object encoded as json, which
+is suitable for communicating to other locations, but not all that usable for
+debugging.
 
 

@@ -1,6 +1,9 @@
 - Add operation level to to fetching a context.
 - Add bootstrapping tracker to SHEInt and SHEFp
 - Add SHEString
+- Create detailed documentation on each function
+- Create 3, 4, 5, and 6 variable versions of needRecrypt, verifyArgs, and
+  reCrypt.
 - Add Debugging Summary to SHEVector
 - Complete the GenericContext code
 - Add Vector operations

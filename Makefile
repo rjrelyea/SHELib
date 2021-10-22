@@ -36,10 +36,10 @@ SHEEval: SHEEval.o ${LIB}
 	g++ -g -c -o $@ ${CPPFLAGS} $<
 
 SHEContext.o: SHEContext.h
-SHEFp.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEFp.h
-SHEInt.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h
-SHEKey.o: SHEKey.h SHEContext.h SHEMagic.h SHEio.h
-SHEio.o: SHEio.h
-SHETest.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h
-SHEPerf.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h
-SHEEval.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h
+SHEFp.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEFp.h SHEConfig.h
+SHEInt.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEConfig.h
+SHEKey.o: SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEConfig.h
+SHEio.o: SHEio.h SHEConfig.h
+SHETest.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h SHEConfig.h
+SHEPerf.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEConfig.h
+SHEEval.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEConfig.h

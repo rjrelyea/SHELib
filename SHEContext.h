@@ -9,6 +9,7 @@
 #define SHEContext_H 1
 #include <unordered_map>
 #include <helib/helib.h>
+#include "SHEConfig.h"
 
 // we keep 3 types of contexts: Binary for binary arithmetic,
 // strings for encrypted strings (used for encrypted searches), and

@@ -27,9 +27,6 @@ static const struct {
 
 static const int contextTypeTableSize=sizeof(contextTypeTable)/
                                       sizeof(contextTypeTable[0]);
-#define SHECONTEXT_MAX_GEN_SIZE 3
-#define SHECONTEXT_MAX_ORD_SIZE 3
-#define SHECONTEXT_USE_TABLE 1
 #define SHE_ARRAY_SIZE(t) (sizeof(t)/sizeof(t[0]))
 
 struct SHEContextParams {

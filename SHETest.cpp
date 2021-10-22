@@ -8,18 +8,8 @@
 #include "SHEVector.h"
 #include "SHEFp.h"
 
-// set this define to turn off testing of div and mod operators
-//#define SHE_SKIP_DIV 1
-#define SHE_USE_HALF_FLOAT 1
-//#define SHE_FLOAT_MISMATCHED_PRECISION 1
-#ifdef SHE_USE_HALF_FLOAT
-#define SHE_FLOAT_MISMATCHED_PRECISION 1
-#endif
 #define NUM_TESTS 19
 #define FLOAT_TESTS 9
-// we don't have native halfword foating point to compare our
-// results with, so we have to compare with a higher precision
-// implementation, which means they won't match exactly
 
 #ifdef SHE_FLOAT_MISMATCHED_PRECISION
 #define F_epsilon .003   // mult and divide amplify errors
