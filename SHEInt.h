@@ -7,20 +7,7 @@
 #include <iostream>
 #include <helib/helib.h>
 #include "SHEKey.h"
-
-#define DEBUG 1
-// values used to decide if we need to bootstrap before
-// the next operation
-#define SHEINT_DEFAULT_LEVEL_TRIGGER 80
-// this should be a function we query from the context. It should be
-// the capacity remaining after we complete a recrypt operation.
-#define SHEINT_LEVEL_THRESHOLD 390
-//#define SHEINT_DEFAULT_NOISE_FACTOR .25
-#define SHEINT_MAX_LABEL_SIZE 16
-// subraction compare is slower, but single bit operation compare
-// uses more levels, and thus may take multiple bootstrapping operations.
-//#define SHEIT_COMPARE_USE_SUB 1 // use subtraction & is neg for compare versus
-                                // single bit operations
+#include "SHEConfig.h"
 
 //
 // this class uses the helib binaryArthm interface to implement various
