@@ -18,6 +18,7 @@ SHEPrivateKey *SHEInt::debugPrivKey = nullptr;
 std::ostream *SHEInt::log = nullptr;
 uint64_t SHEInt::nextTmp = 0;
 SHEIntLabelHash SHEInt::labelHash;
+SHERecryptCounters SHEInt::recryptCounters = { 0 };
 
 static std::vector<helib::Ctxt> &
 sheInt_Encrypt(const SHEPublicKey &pubKey,
@@ -161,6 +162,7 @@ void SHEInt::reCrypt(SHEInt &a)
   helib::CtPtrs_vectorCt wrapperA(a.encryptedData);
   helib::packedRecrypt(wrapper, wrapperA,
             (std::vector<helib::zzX> *)pubKey->getUnpackSlotEncoding());
+  reCryptDoubleCounter();
   if (log) {
     (*log) << "<" << (SHEIntSummary)*this << ","
            << (SHEIntSummary) a << ">]" << std::flush;
@@ -178,6 +180,10 @@ void SHEInt::reCrypt(void)
   if (log) {
     (*log) << "[Recrypt(" << (SHEIntSummary)*this << ")->" << std::flush;
   }
+  helib::packedRecrypt(wrapper,
+            *(std::vector<helib::zzX> *)pubKey->getUnpackSlotEncoding(),
+            pubKey->getEncryptedArray());
+  reCryptCounter();
   if (log) {
     (*log) << (SHEIntSummary)*this << "]" << std::flush;
   }
@@ -488,6 +494,7 @@ helib::Ctxt SHEInt::selectArrayBit(const SHEInt &index, int offset,
                << ") at bit " << i << " of" << bitSize << std::endl;
       }
       publicKey.reCrypt(selectedBit);
+      reCryptBitCounter();
     }
     selectedBit = (index == cmpIndex).selectBit(encryptedData[i],
                                                   selectedBit);
@@ -1773,11 +1780,13 @@ SHEInt SHEInt::operator>(const SHEInt &a) const
          if (log) (*log) << "add hasResult" << std::endl;
          //bits.push_back(hasResult);
          publicKey.reCrypt(hasResult);
+         reCryptBitCounter();
       }
       if (localResult.bitCapacity() < SHEINT_LEVEL_THRESHOLD) {
          if (log) (*log) << "add localResult" << std::endl;
          //bits.push_back(localResult);
          publicKey.reCrypt(localResult);
+         reCryptBitCounter();
       }
       //if (log) (*log) << "bits=" << bits.size() << std::endl;
       //helib::CtPtrs_vectorCt wrapper(bits);

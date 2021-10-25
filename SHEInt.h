@@ -9,6 +9,13 @@
 #include "SHEKey.h"
 #include "SHEConfig.h"
 
+typedef struct  {
+  uint64_t doubleRecrypt;
+  uint64_t recrypt;
+  uint64_t bitRecrypt;
+  uint64_t total;
+} SHERecryptCounters;
+
 //
 // this class uses the helib binaryArthm interface to implement various
 // homomorphic encrypted integer types. These classes create operators
@@ -55,6 +62,7 @@ private:
   static std::ostream *log;
   static uint64_t nextTmp;
   static SHEIntLabelHash labelHash;
+  static SHERecryptCounters recryptCounters;
   const SHEPublicKey *pubKey;
   int bitSize;              // how may bits in our int
   bool isUnsigned;          // treat this as a 2's complement binary value
@@ -84,6 +92,19 @@ private:
     labelHash[this]=labelBuf;
     return labelBuf;
   }
+  void reCryptCounter(void) const {
+    recryptCounters.recrypt++;
+    recryptCounters.total++;
+  }
+  void reCryptDoubleCounter(void) const {
+    recryptCounters.doubleRecrypt++;
+    recryptCounters.total++;
+  }
+  void reCryptBitCounter(void) const {
+    recryptCounters.bitRecrypt++;
+    recryptCounters.total++;
+  }
+
 
 protected:
   SHEInt(const SHEPublicKey &pubkey, const unsigned char *encryptedInt,
@@ -270,6 +291,9 @@ public:
   void verifyArgs(SHEInt &a, long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
   void reCrypt(void);
   void reCrypt(SHEInt &a);
+  static SHERecryptCounters getRecryptCounters(void)
+          { return recryptCounters; }
+  static void resetReccryptCounters(void)  { recryptCounters = { 0 }; }
 
 #ifdef DEBUG
   static void setDebugPrivateKey(SHEPrivateKey &privKey)

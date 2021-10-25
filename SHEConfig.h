@@ -43,22 +43,16 @@
 //#define SHE_SKIP_DIV 1
 
 // use half float instead of float in tests
-#define SHE_USE_HALF_FLOAT 1
+//#define SHE_USE_HALF_FLOAT 1
 
-// use a squishy floating point compare to
-// deal with percisiong mismatches. SHE_USE_HALF_FLOAT
-// implies this implicitly
-//#define SHE_FLOAT_MISMATCHED_PRECISION 1
-
-#define F_epsilon .003
-
-// force SHE_FLOAT_MISMATCHED_PRECISION to 1 if
-// SHE_USE_HALF_FLOAT is set
-#ifndef SHE_FLOAT_MISMATCHED_PRECISION
+// how squishy floating point diff can be before
+// still testing as equal.
 #ifdef SHE_USE_HALF_FLOAT
-#define SHE_FLOAT_MISMATCHED_PRECISION 1
+#define F_epsilon .003
+#else
+#define F_epsilon (1e-36)
 #endif
-#endif
+
 
 #endif
 

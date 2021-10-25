@@ -639,7 +639,7 @@ SHEFp SHEFp::operator/(const SHEFp &a) const {
   SHEInt underflowAmount(result.exp);
   underflowAmount.reset(expSize+2, false);
   underflowAmount += (mkBiasExp(a.exp.getSize()) - mkBiasExp(exp.getSize())) +
-                      mkBiasExp(expSize);
+                      mkBiasExp(expSize) + 1;
   SHEBool underflow = underflowAmount.isNegative();
   result.exp = underflowAmount;
   result.exp.reset(expSize+2, true);
@@ -655,14 +655,14 @@ SHEFp SHEFp::operator/(const SHEFp &a) const {
   underflowAmount = -underflowAmount;
 
   // handle the mantissa
-  rmantissa.reset(result.mantissa.getSize()+a.mantissa.getSize(), true);
-  rmantissa <<= a.mantissa.getSize(); // shift up to capture maximal precision
-  rmantissa /= a.mantissa; // do the multiply
+  rmantissa.reset(result.mantissa.getSize()+a.mantissa.getSize()-1, true);
+  rmantissa <<= a.mantissa.getSize()-1; // shift up to capture maximal precision
+  rmantissa /= a.mantissa; // do the divide
   // overflow and underflow processing
   rmantissa = overflow.select(0, rmantissa);
   // do the underflow shift before we reset..
   rmantissa = underflow.select(rmantissa >> underflowAmount, rmantissa);
-  rmantissa.reset(result.mantissa.getSize(), true);
+  rmantissa.reset(result.mantissa.getSize(), true); // back to normal
   result.mantissa = rmantissa;
   result.normalize();
 

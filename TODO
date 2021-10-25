@@ -1,6 +1,15 @@
 - Add operation level to to fetching a context.
-- Add bootstrapping tracker to SHEInt and SHEFp
+- SHEInt->SHEFp and SHEFp->SHEInt casts.
+- increase test coverage.
+   - test Encrypted+non-encrypted cases
+   - test all the x= cases.
+   - test against more values (larger, smaller, etc).
+- Add arguments to SHETest to change the context under test.
+- Add floating point functions: trig, exp, etc.
 - Add SHEString
+- Add Unordered_map:
+  - a version that stores the components unencrypted, but are retrieved
+    encrypted.
 - Create detailed documentation on each function
 - Create 3, 4, 5, and 6 variable versions of needRecrypt, verifyArgs, and
   reCrypt.

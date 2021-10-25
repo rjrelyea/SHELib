@@ -43,22 +43,26 @@ public:
 };
 
 std::ostream&operator<<(std::ostream&str, const PrintTime &p) {
-  if (p.ptime < 1000.0) {
+#define MS_TO_S 1000.0
+#define MS_TO_MIN (60.0*MS_TO_S)
+#define MS_TO_H (60.0*MS_TO_MIN)
+#define MS_TO_D (24*MS_TO_H)
+  if (p.ptime < MS_TO_S) {
     str << p.ptime << "ms";
     return str;
   }
-  if (p.ptime < 60000.0) {
-    str << (p.ptime/1000.0) << "s";
+  if (p.ptime < MS_TO_MIN) {
+    str << (p.ptime/MS_TO_S) << "s";
     return str;
   }
-  if (p.ptime < 360000.0) {
-    str << (p.ptime/60000.0) << "min";
+  if (p.ptime < MS_TO_H) {
+    str << (p.ptime/MS_TO_MIN) << "min";
     return str;
   }
-  if (p.ptime < (360000.0*24.0)) {
-    str << (p.ptime/360000.0) << "h";
+  if (p.ptime < (MS_TO_D)) {
+    str << (p.ptime/MS_TO_H) << "h";
     return str;
   }
-  str << (p.ptime/(360000.0*24.0)) << "d";
+  str << (p.ptime/(MS_TO_D)) << "d";
   return str;
 }
