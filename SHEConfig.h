@@ -50,7 +50,7 @@
 #ifdef SHE_USE_HALF_FLOAT
 #define F_epsilon .003
 #else
-#define F_epsilon (1e-36)
+#define F_epsilon (1.5e-7)
 #endif
 
 

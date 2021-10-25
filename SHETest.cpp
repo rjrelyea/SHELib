@@ -18,7 +18,7 @@ uint64_t ftohex(double a) { uint64_t *ap = (uint64_t*)&a; return *ap; }
 #define FLOATDUMP(a,b)   std::hex << ftohex(a) << " " \
                          << ftohex(b) << " " << std::dec
 #define FLOAT_CMP_EQ(f,g) ((f != g) ? std::cout << FLOATDUMP(f,g) \
-                           << fabs((f)-(g))/(g) << " " : std::cout, \
+                           << fabs(((f)-(g))/(g)) << " " : std::cout, \
                            fabs(g) < F_epsilon ? fabs(f) < F_epsilon : \
                             fabs(((f)-(g))/(g)) < F_epsilon )
 
@@ -397,7 +397,7 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
     if (FLOAT_CMP_EQ(fr[i],dfr[i])) {
       std::cout << "PASS";
     } else {
-      failed++; std::cout << FLOATDUMP(fr[i],dfr[i]) <<"FAIL";
+      failed++; std::cout <<"FAIL";
     }
     tests++; std::cout << std::endl;
   }

@@ -324,15 +324,17 @@ typedef _Float128 shefloat128_t;
 typedef shemaxfloat_t shefloat128_t;
 #endif
 
-// NOTE: mantissa is 1 greater than the natural format.
-// SHEFp keeps the implicit high bit explicitly.
+// NOTE: mantissa is 2 greater than the natural format.
+// 1) SHEFp keeps the implicit high bit explicitly.
 // The cost of recontructing it and removing it isn't
 // worth the space savings.
-NEW_FP_CLASS(SHEHalfFloat,     shefloat16_t,   5,  11)
-NEW_FP_CLASS(SHEBFloat16,      shebfloat16_t,  8,   8)
-NEW_FP_CLASS(SHEFloat,         shefloat32_t,   8,  24)
-NEW_FP_CLASS(SHEDouble,        shefloat64_t,  11,  53)
-NEW_FP_CLASS(SHEExtendedFloat, shefloat128_t, 15,  65)
-NEW_FP_CLASS(SHELongDouble,    shefloat128_t, 15, 113)
+// 2) We carry one extra bit of precision to mimic the
+// internal percision of the Intel FP engin
+NEW_FP_CLASS(SHEHalfFloat,     shefloat16_t,   5,  12)
+NEW_FP_CLASS(SHEBFloat16,      shebfloat16_t,  8,   9)
+NEW_FP_CLASS(SHEFloat,         shefloat32_t,   8,  25)
+NEW_FP_CLASS(SHEDouble,        shefloat64_t,  11,  54)
+NEW_FP_CLASS(SHEExtendedFloat, shefloat128_t, 15,  66)
+NEW_FP_CLASS(SHELongDouble,    shefloat128_t, 15, 114)
 
 #endif
