@@ -371,14 +371,14 @@ SHEFp log1p(const SHEFp &a)
       SHEFp f = 4.0/x;    // = 4*f(x)
       result += f*deltaX3;
       if (sheMathLog)
-        (*sheMathLog) << " step " << i << ": x=" << (SHEFpSummary) x
+        (*sheMathLog) << " step " << i << " : x=" << (SHEFpSummary) x
                       << " 4*f(x)=" << (SHEFpSummary) f << " result="
                       << (SHEFpSummary) result << std::endl;
     } else {
       SHEFp f = 2.0/x;    // = 2*f(x)
       result += f*deltaX3;
       if (sheMathLog)
-        (*sheMathLog) << " step " << i << ": x=" << (SHEFpSummary) x
+        (*sheMathLog) << " step " << i << " : x=" << (SHEFpSummary) x
                       << " 2*f(x)=" << (SHEFpSummary) f << " result="
                       << (SHEFpSummary) result << std::endl;
     }
