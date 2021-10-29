@@ -667,7 +667,13 @@ SHEInt &SHEInt::rightShift(const SHEInt &shift, SHEInt &result) const
 
 SHEInt SHEInt::abs(void) const
 {
-   return isNegative().select(-*this,*this);
+  // save the capacity of the single multiply
+  // if we already know *this isn't negative
+  // from unencrypted information
+  if (isUnsigned || isExplicitZero) {
+    return *this;
+  }
+  return isNegative().select(-*this,*this);
 }
 
 //
@@ -678,17 +684,28 @@ SHEInt SHEInt::abs(void) const
 // so it will return incorrect results (quotient=0, remainder=0). Callers are
 // responsible for detecting and dealing with that case on their own.
 
-SHEInt &SHEInt::udivRaw(const SHEInt &divisor, SHEInt &result, bool mod) const
+SHEInt &SHEInt::udivRaw(const SHEInt &div, SHEInt *result, SHEInt *mod) const
 {
   SHEInt dividend(*this,"dividend");
+  SHEInt divisor(div,"divisor");
   // for our math case, make sure the dividend has at least as many
   // bits as the divisor
   if (log) {
     (*log) << (SHEIntSummary) *this << ".udivRaw("
-          << (SHEIntSummary) divisor << ","
-          << (SHEIntSummary) result << "," << (char *)(mod?"true":"false")
-          << "=" << std::endl;
+          << (SHEIntSummary) divisor << ",";
+    if (result) {
+      (*log) << (SHEIntSummary) *result << ",";
+    }else {
+      (*log) << "NULL,";
+    }
+    if (mod) {
+      (*log) << (SHEIntSummary) *mod << "";
+    }else {
+      (*log) << "NULL";
+    }
+    (*log) << "=" << std::endl;
   }
+  dividend.verifyArgs(divisor, SHEINT_DEFAULT_LEVEL_TRIGGER*2);
   if ( bitSize < divisor.bitSize) {
     dividend.reset(divisor.bitSize, true);
   }
@@ -716,8 +733,8 @@ SHEInt &SHEInt::udivRaw(const SHEInt &divisor, SHEInt &result, bool mod) const
       remainder.encryptedData[0] = bit;
     }
     // precheck bootstrapping on deep use variables
-    sel.verifyArgs(remainder, 160);
-    quotient.verifyArgs();
+    sel.verifyArgs(remainder, SHEINT_DEFAULT_LEVEL_TRIGGER*2);
+    quotient.verifyArgs(quotientShift, SHEINT_DEFAULT_LEVEL_TRIGGER*2);
     sel = sel && remainder < divisor;
     dividend.leftShift(1);
     SHEInt t(*pubKey,0,bitSize,false,"t");
@@ -737,11 +754,17 @@ SHEInt &SHEInt::udivRaw(const SHEInt &divisor, SHEInt &result, bool mod) const
     quotient = sel.select(quotient,quotientShift);
     remainder = (q || sel).select(remainder, t);
   }
-  result = mod ? remainder: quotient;
-  if (log) {
-    (*log) << "udivRaw.result=" << (SHEIntSummary) result<< std::endl;
+  if (result) {
+    if (log) (*log) << "udivRaw.result=" << (SHEIntSummary) *result
+                    << std::endl;
+    *result = quotient;
   }
-   return result;
+  if (mod) {
+    if (log) (*log) << "udivRaw.mod=" << (SHEIntSummary) *mod
+                    << std::endl;
+    *mod = quotient;
+  }
+   return result ? *result : *mod;
 }
 
 
@@ -917,7 +940,8 @@ SHEInt SHEInt::operator*(uint64_t a) const
   return result;
 }
 
-SHEInt &SHEInt::operator*=(uint64_t a) {
+SHEInt &SHEInt::operator*=(uint64_t a)
+{
   *this = *this * a;
   return *this;
 }
@@ -926,20 +950,24 @@ SHEInt &SHEInt::operator*=(uint64_t a) {
 // We use udivRaw to do both unsigned and signed division by
 // taking the signed case, and converting the parameters to
 // unsigned, then reconstituting the sign at the end
-SHEInt SHEInt::operator/(const SHEInt &a) const {
+SHEInt &SHEInt::divmod(const SHEInt &a, SHEInt *result, SHEInt *mod) const
+{
   // if we can tell we are dividing by zero, return an error
   // if a is actually an encrypted 'zero' we can't tell that here.
-  // currently we have to signalling for NaN like floating point
+  // currently we have to signalling for NaN like floating point, but none
+  // for integers
+  helib::assertTrue(result || mod, "either result or mod must be supplied");
   if (a.isUnencryptedZero()) {
     throw helib::LogicError("divide by zero");
   }
   if (isUnencryptedZero()) {
-    return *this;
+    if (result) *result = *this;
+    if (mod) *mod = a;
+    return result ? *result : * mod;
   }
 
-  SHEInt result(*pubKey, 0, bitSize, true);
   if (isUnsigned && a.isUnsigned) {
-    return udivRaw(a, result, false);
+    return udivRaw(a, result, mod);
   }
   // force the values to unsigned values
   SHEInt dividend = abs();
@@ -947,15 +975,42 @@ SHEInt SHEInt::operator/(const SHEInt &a) const {
   dividend.isUnsigned = true;
   divisor.isUnsigned = true;
   // do the unsigned division
-  (void) dividend.udivRaw(divisor, result, false);
-  result.isUnsigned = false;
-  result.verifyArgs(); // udivRaw can be brutal on our levels, levelup before
-                       // we drop into select.
-  // set the final sign appropriately
-  result = (this->isNegative() ^ a.isNegative()).select(SHEInt(-result),result);
-  return result;
+  (void) dividend.udivRaw(divisor, result, mod);
+  // udivRaw can be brutal on our levels, levelup before
+  // we drop into select.
+  if (result) {
+    if (mod) {
+      result->verifyArgs(*mod);
+    } else {
+      result->verifyArgs();
+    }
+  } else {
+    mod->verifyArgs();
+  }
+  if (result) {
+    result->isUnsigned = false;
+    // set the final sign appropriately
+    *result = (this->isNegative() ^ a.isNegative()).
+              select(-(*result),*result);
+  }
+  if (mod) {
+    mod->isUnsigned = false;
+    *mod = isNegative().select(-(*mod),*mod);
+  }
+  return result ? *result : *mod;
 }
 
+SHEInt SHEInt::operator/(const SHEInt &a) const
+{
+  SHEInt result(*pubKey, 0, bitSize, true);
+  return divmod(a, &result, nullptr);
+}
+
+SHEInt &SHEInt::divmod(const SHEInt &a, SHEInt &result, SHEInt &mod) const
+{
+  return divmod(a, &result, &mod);
+}
+ 
 //
 // No real efficiency gain in division, just do the normal
 // wrapping
@@ -986,28 +1041,8 @@ SHEInt &SHEInt::operator/=(uint64_t a) {
 
 SHEInt SHEInt::operator%(const SHEInt &a) const
 {
-  if (a.isUnencryptedZero()) {
-    throw helib::LogicError("divide by zero (mod)");
-  }
-  if (isUnencryptedZero()) {
-    return *this;
-  }
-
-  if (isUnsigned && a.isUnsigned) {
-    SHEInt result(*pubKey, 0, bitSize, true);
-    return udivRaw(a, result, true);
-  }
-  // force the values to unsigned values
-  SHEInt dividend = abs();
-  SHEInt divisor = a.abs();
-  dividend.isUnsigned = true;
-  divisor.isUnsigned = true;
-  SHEInt result(*pubKey, 0, bitSize, true, "modresult");
-  // do the unsigned division
-  (void) dividend.udivRaw(divisor, result, true);
-  result.isUnsigned = false;
-  result = isNegative().select(-result,result);
-  return result;
+  SHEInt result(*pubKey, 0, bitSize, true);
+  return divmod(a, nullptr, &result);
 }
 
 //
@@ -1513,7 +1548,7 @@ SHEInt SHEInt::isNotZero(void) const
 SHEInt SHEInt::isNegative(void) const
 {
   SHEInt isNeg(*pubKey, 1, 1, true);
-  if (isUnsigned) {
+  if (isUnsigned || isExplicitZero) {
     isNeg.encryptedData.clear();
     isNeg.isExplicitZero=true;
     return isNeg;
@@ -1737,7 +1772,7 @@ SHEInt SHEInt::operator>(const SHEInt &a) const
 #ifdef SHEIT_COMPARE_USE_SUB
   a_prime.reset(compareBestSize(a.bitSize)+1,a.isUnsigned);
   if (log) (*log) << std::endl << "Doing subtraction" << std::endl;
-  SHEInt result=(*this-a_prime).isNegative();
+  SHEInt result=(*this-a_prime).getBitHigh(0);
 #else
   a_prime.reset(compareBestSize(a.bitSize),isUnsigned);
   // do the compare without the overhead of subtract

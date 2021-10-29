@@ -7,10 +7,10 @@
 #include "SHETime.h"
 #include "SHEVector.h"
 #include "SHEFp.h"
+#include "SHEMath.h"
 
-#define NUM_TESTS 19
-#define FLOAT_TESTS 9
-
+#define NUM_TESTS 20
+#define FLOAT_TESTS 15
 
 uint32_t ftohex(float a) { uint32_t *ap = (uint32_t*)&a; return *ap; }
 uint64_t ftohex(double a) { uint64_t *ap = (uint64_t*)&a; return *ap; }
@@ -19,6 +19,8 @@ uint64_t ftohex(double a) { uint64_t *ap = (uint64_t*)&a; return *ap; }
                          << ftohex(b) << " " << std::dec
 #define FLOAT_CMP_EQ(f,g) ((f != g) ? std::cout << FLOATDUMP(f,g) \
                            << fabs(((f)-(g))/(g)) << " " : std::cout, \
+                           (std::isnan(f) && std::isnan(g)) || \
+                           (std::isinf(f) && std::isinf(g)) || \
                            fabs(g) < F_epsilon ? fabs(f) < F_epsilon : \
                             fabs(((f)-(g))/(g)) < F_epsilon )
 
@@ -122,55 +124,55 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
             << " ms" << std::endl;
 
   std::cout << "-------------decrypted inputs\n" << std::endl;
-  std::cout << "a=" << a << " da=" << da ;
-  if (a != da) { failed++; std::cout << " FAILED"; }
+  std::cout << "a=" << a << " da=" << da << " ";
+  if (a != da) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "b=" << b << " db=" << db;
-  if (b != db) { failed++; std::cout << " FAILED"; }
+  std::cout << "b=" << b << " db=" << db << " ";
+  if (b != db) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "c=" << c << " dc=" << dc;
-  if (c != dc) { failed++; std::cout << " FAILED"; }
+  std::cout << "c=" << c << " dc=" << dc << " ";
+  if (c != dc) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "d=" << d << " dd=" << dd;
-  if (d != dd) { failed++; std::cout << " FAILED"; }
+  std::cout << "d=" << d << " dd=" << dd << " ";
+  if (d != dd) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "z=" << z << " dz=" << dz;
-  if (z != dz) { failed++; std::cout << " FAILED"; }
+  std::cout << "z=" << z << " dz=" << dz << " ";
+  if (z != dz) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "i=" << (int)i << " di=" << (int)di;
-  if (i != di) { failed++; std::cout << " FAILED"; }
+  std::cout << "i=" << (int)i << " di=" << (int)di << " ";
+  if (i != di) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "ua=" << ua << " dua=" << dua;
-  if (ua != dua) { failed++; std::cout << " FAILED"; }
+  std::cout << "ua=" << ua << " dua=" << dua << " ";
+  if (ua != dua) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "ub=" << ub << " dub=" << dub;
-  if (ub != dub) { failed++; std::cout << " FAILED"; }
+  std::cout << "ub=" << ub << " dub=" << dub << " ";
+  if (ub != dub) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "uc=" << uc << " duc=" << duc;
-  if (uc != duc) { failed++; std::cout << " FAILED"; }
+  std::cout << "uc=" << uc << " duc=" << duc << " ";
+  if (uc != duc) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "ud=" << ud << " dud=" << dud;
-  if (ud != dud) { failed++; std::cout << " FAILED"; }
+  std::cout << "ud=" << ud << " dud=" << dud << " ";
+  if (ud != dud) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "uz=" << uz << " duz=" << duz;
-  if (uz != duz) { failed++; std::cout << " FAILED"; }
+  std::cout << "uz=" << uz << " duz=" << duz << " ";
+  if (uz != duz) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "ui=" << (unsigned) ui << " dui=" << (unsigned) dui;
-  if (ui != dui) { failed++; std::cout << " FAILED"; }
+  std::cout << "ui=" << (unsigned) ui << " dui=" << (unsigned) dui << " ";
+  if (ui != dui) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "fa=" << fa << " dfa=" << dfa;
-  if (!FLOAT_CMP_EQ(fa, dfa)) { failed++; std::cout << " FAILED"; }
+  std::cout << "fa=" << fa << " dfa=" << dfa << " ";
+  if (!FLOAT_CMP_EQ(fa, dfa)) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "fb=" << fb << " dfb=" << dfb;
-  if (!FLOAT_CMP_EQ(fb, dfb)) { failed++; std::cout << " FAILED"; }
+  std::cout << "fb=" << fb << " dfb=" << dfb << " ";
+  if (!FLOAT_CMP_EQ(fb, dfb)) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "fc=" << fc << " dfc=" << dfc;
-  if (!FLOAT_CMP_EQ(fc, dfc)) { failed++; std::cout << " FAILED"; }
+  std::cout << "fc=" << fc << " dfc=" << dfc << " ";
+  if (!FLOAT_CMP_EQ(fc, dfc)) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "fd=" << fd << " dfd=" << dfd;
-  if (!FLOAT_CMP_EQ(fd, dfd)) { failed++; std::cout << " FAILED"; }
+  std::cout << "fd=" << fd << " dfd=" << dfd << " ";
+  if (!FLOAT_CMP_EQ(fd, dfd)) { failed++; std::cout << "FAILED"; }
   tests++; std::cout << std::endl;
-  std::cout << "fz=" << fz << " dfz=" << dfz;
+  std::cout << "fz=" << fz << " dfz=" << dfz << " ";
   if (fz != dfz) { failed++; std::cout << " FAILED"; }
   tests++; std::cout << std::endl;
 
@@ -208,6 +210,7 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   r[17] = a << i;
   r[18] = d;
   r[18] <<= i;
+  r[19] = (int16_t) fb;
 
   // unsigned equivalences
   ur[z] = ub;
@@ -236,6 +239,7 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   ur[17] = ua << ui;
   ur[18] = ud;
   ur[18] <<= ui;
+  ur[19] = (uint16_t) fb;
 
   // floating point operations
   fr[z] = fb;
@@ -251,7 +255,13 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   fr[6] = fc*fd;
 #endif
   fr[7] = fa*fb - fc*fd;
-  fr[8] = fr[b];
+  fr[8] = fr[i];
+  fr[9] = (float) b;
+  fr[10] = sin(fb);
+  fr[11] = cos(fb);
+  fr[12] = exp(fb);
+  fr[13] = tan(fb);
+  fr[14] = log(fa);
 
   //Time the encrypted operations
   std::cout << "-------------- encrypted math tests"  << std::endl;
@@ -290,6 +300,7 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST(er[17], r[17], er[17] = ea << ei)
   er[18] = ed;
   RUN_TEST(er[18], r[18], er[18] <<= ei)
+  RUN_TEST(er[19], r[19], er[19] = (SHEInt16) efb.toSHEInt())
 
   std::cout << "..unsign ints"  << std::endl;
   RUN_TEST_ALIAS(eur[euz], ur[z], eur.assign(euz,eub), eur[euz] = eub)
@@ -326,6 +337,7 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST(eur[17], ur[17], eur[17] = eua << eui)
   eur[18] = eud;
   RUN_TEST(eur[18], ur[18], eur[18] <<= eui)
+  RUN_TEST(eur[19], ur[19], eur[19] = (SHEUInt16) efb.toSHEInt())
 
   std::cout << "..floats "  << std::endl;
   RUN_TEST_ALIAS(efr[euz], fr[z], efr.assign(ez,efb), efr[ez] = efb)
@@ -342,8 +354,20 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST(efr[5], fr[5], efr[5] = efc + efd)
   RUN_TEST(efr[6], fr[6], efr[6] = efc * efd)
 #endif
-  RUN_TEST(efr[1], fr[1], efr[7] = efa*efb - efc*efd)
-  RUN_TEST(efr[1], fr[1], efr[8] = efr[b])
+  RUN_TEST(efr[7], fr[7], efr[7] = efa*efb - efc*efd)
+  RUN_TEST(efr[8], fr[8], efr[8] = efr[ei])
+#ifdef SHE_USE_HALF_FLOAT
+  RUN_TEST(efr[9], fr[9], efr[9] = (SHEHalfFloat)eb)
+#else
+  RUN_TEST(efr[9], fr[9], efr[9] = (SHEFloat)eb)
+#endif
+  RUN_TEST(efr[10], fr[10], efr[10] = sin(efb))
+  RUN_TEST(efr[11], fr[11], efr[11] = cos(efb))
+  RUN_TEST(efr[12], fr[12], efr[12] = exp(efb))
+  //RUN_TEST(efr[12], fr[12], efr[12] = efr[10])
+  RUN_TEST(efr[13], fr[13], efr[13] = tan(efb))
+  RUN_TEST(efr[14], fr[14], efr[14] = log(efa))
+  //RUN_TEST(efr[14], fr[14], efr[14] = efb)
 
   int16_t dr[NUM_TESTS];
   uint16_t dur[NUM_TESTS];
@@ -419,6 +443,7 @@ int main(int argc, char **argv)
   SHEInt::setLog(std::cout);
   SHEFp::setLog(std::cout);
 #endif
+  SHEMathSetLog(std::cout);
 
 
   SHEGenerate_BinaryKey(privkey, pubkey, 19);
@@ -438,7 +463,7 @@ int main(int argc, char **argv)
   z = 0;
   i = 7;
   fa = -14.0;
-  fb = 7.7;
+  fb = M_PI_4;
   fc = 1.4e-3;
   fd = 2.5e3;
   fz = 0.0;
@@ -568,9 +593,28 @@ int main(int argc, char **argv)
   //fc = 1.4e-3;
   //fd = 2.5e3;
   //fz = 0.0;
+  //fb = M_PI_4;
+  //fc = 1.4e-3;
+  //fd = 2.5e3;
 
   do_tests(pubkey, privkey, a, b, c, d, z, i, fa, fb, fc, fd,  fz,
            failed, tests);
+  do_tests(pubkey, privkey, INT16_MAX, INT16_MAX, -INT16_MAX, -INT16_MAX, z, 4,
+                8.4, 3*fb, 2.5e6, 1.4e7,  fz, failed, tests);
+  do_tests(pubkey, privkey, 1000, -89, -8, 8, z, 4,
+                8.4e-7, 5*fb, 2.5e-6, 1.4e-7,  fz, failed, tests);
+  do_tests(pubkey, privkey, 1000, -89, -18, 8, z, 2,
+                M_E, M_PI_2, 2.5e-6, 1.4e-7,  fz, failed, tests);
+  do_tests(pubkey, privkey, 1000, -89, -8, 18, z, 8,
+                M_E*M_E, 2.5e5, 2.5e-6, 1.4e-7,  fz, failed, tests);
+  do_tests(pubkey, privkey, 1000, -89, -8, 28, z, 5,
+                1.001, 2.5e-6, 2.5e-6, 1.4e+5,  fz, failed, tests);
+  do_tests(pubkey, privkey, 2000, -89, -28, 8, z, 1,
+                1.001, 1.0, 2.5e-6, 1.4e+4,  fz, failed, tests);
+  do_tests(pubkey, privkey, 2000, -89, -28, 8, z, 9,
+                1.001, M_PI/3.0, 2.5e-6, 1.4e+4,  fz, failed, tests);
+  do_tests(pubkey, privkey, 2000, -89, -28, 8, z, 3,
+                1.001, M_PI/6.0+10*M_PI, 2.5e-6, 1.4e+4,  fz, failed, tests);
 
   std::cout << failed << " test" << (char *)((failed == 1) ? "" : "s")
             << " failed out of " << tests << " tests." << std::endl;

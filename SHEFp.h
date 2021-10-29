@@ -80,6 +80,18 @@ public:
     resetNative();
     return *this;
   }
+  // SHEInt->SHEFp casts
+  SHEFp(const SHEInt &a, const char *label=nullptr);
+  SHEFp(const SHEFp &model, const SHEInt &a, const char *label=nullptr);
+  // make this a function rather than a cast, because making
+  // a cast causes the compiler to choose the wrong select function
+  // for floating point selects.
+  SHEInt toSHEInt() const;
+  SHEFp &operator=(shemaxfloat_t val)
+  { SHEFp a(*this, val);
+    *this = a;
+    return *this;
+  }
 
   // create a SHEFp using the context and size of a module SHEFp
   SHEFp(const SHEFp &model, shemaxfloat_t a, const char *label=nullptr);
@@ -131,8 +143,12 @@ public:
   SHEBool isNegative(void) const;
   SHEBool isPositive(void) const;
   SHEBool isSpecial(void) const;
+  // use the same names as math.h
   SHEBool isNan(void) const;
   SHEBool isInf(void) const;
+  SHEBool isNormal(void) const;
+  SHEBool isFinite(void) const;
+
   // Operatator ? : can't be overridden,
   // so a?b:c becomes a.select(b,c)
   // handle all flavors where b and c are random mix of unencrypted
@@ -145,10 +161,20 @@ public:
                       const SHEFp &a_false);
   friend SHEFp select(const SHEInt &b, shemaxfloat_t a_true,
                       shemaxfloat_t a_false);
+
   // Accessor functions
   const SHEInt &getSign(void) const { return sign; }
   const SHEInt &getExp(void) const { return exp; }
   const SHEInt &getMantissa(void) const { return mantissa; }
+  SHEInt getUnbiasedExp(void) const ;
+  void setUnbiasedExp(uint64_t);
+  void setUnbiasedExp(const SHEInt &);
+  void setSign(const SHEInt &sign_)
+  { sign = sign_; sign.reset(1,true); }
+  void setExp(const SHEInt &exp_)
+  { exp = exp_; resetNative(); }
+  void setMantissa(const SHEInt &mantissa_)
+  { mantissa = mantissa_; resetNative(); normalize(); }
   const char *getLabel(void) const
   {const char *label = labelHash[this];
    if (label) return label;
@@ -156,6 +182,13 @@ public:
   // switch size and signedness
   void reset(int newExpSize, int newMatissaSize);
   void clear(void) { sign.clear(); exp.clear(); mantissa.clear(); }
+  // get ranges of the current fp
+  // getMax() returns the larget value that can be represented by this float
+  // getMin() returs the value closest to zero hat can be represented by
+  // this float. both values are positive.
+  shemaxfloat_t getMax() const;
+  shemaxfloat_t getMin() const;
+
   // get the decrypted result given the private key
   shemaxfloat_t decryptRaw(const SHEPrivateKey &privKey) const;
   // bootstrapping help

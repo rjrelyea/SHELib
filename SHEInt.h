@@ -79,7 +79,9 @@ private:
   SHEInt &addRaw(const SHEInt &a, SHEInt &result) const;
   SHEInt &subRaw(const SHEInt &a, SHEInt &result) const;
   SHEInt &mulRaw(const SHEInt &a, SHEInt &result) const;
-  SHEInt &udivRaw(const SHEInt &a, SHEInt &result, bool mod) const;
+  SHEInt &udivRaw(const SHEInt &a, SHEInt *result, SHEInt *mod) const;
+  SHEInt &divmod(const SHEInt &a, SHEInt *result, SHEInt *mod) const;
+
   // shifts
   void leftShift(uint64_t shift);
   void rightShift(uint64_t shift);
@@ -163,6 +165,7 @@ public:
   SHEInt operator+(uint64_t) const;
   SHEInt operator-(uint64_t a) const;
   SHEInt operator*(uint64_t a) const;
+  SHEInt &divmod(const SHEInt &a, SHEInt &result, SHEInt &mod) const;
   SHEInt operator/(uint64_t a) const;
   SHEInt operator%(uint64_t a) const;
   SHEInt operator<<(uint64_t a) const;

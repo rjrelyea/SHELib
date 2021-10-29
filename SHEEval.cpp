@@ -163,6 +163,15 @@ int main(int argc, char **argv)
   SHEPublicKey pubkey;
   SHEPrivateKey privkey;
   Timer timer;
+  int level= 0;
+  int lastLevel = 200;
+
+  if (argc > 1) {
+     level = atoi(argv[1]);
+  }
+  if (argc > 2) {
+     lastLevel = atoi(argv[2]);
+  }
 
 #ifdef notdef
   SHEContext::setLog(std::cout);
@@ -178,6 +187,9 @@ int main(int argc, char **argv)
     SHEPublicKey pubkey;
     SHEPrivateKey privkey;
     bool fail = false;
+
+    if (security_level[i] < level) continue;
+    if (security_level[i] > lastLevel) break;
     std::cout << "-------------------------- security level "
               << security_level[i] << " ---------------------------" << std::endl;
     timer.start();

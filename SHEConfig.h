@@ -17,6 +17,11 @@
 // maximum number of generators and orders in the context table
 #define SHECONTEXT_MAX_GEN_SIZE 3
 #define SHECONTEXT_MAX_ORD_SIZE 3
+// SHEMATH_TRIG  number of tailor series for trig functions
+// can't be > 36! or you need to update the tangent array
+#define SHEMATH_TRIG_LOOP_COUNT 15
+// number of tailor series for Natural log calculations
+#define SHEMATH_LN_LOOP_COUNT 15
 
 //////////////////////////////////////////////////////////////
 // flags
@@ -25,6 +30,10 @@
 // Use the table of pre defined contexts when selecting a context
 #define SHECONTEXT_USE_TABLE 1
 
+// use the CLZ builtin to figure out how many bits of we need to represent
+// and integer
+#define SHEFP_USE_CLZ_BUILTIN 1
+
 // subraction compare is slower, but single bit operation compare
 // uses more levels, and thus may take multiple bootstrapping operations.
 // this option triggers using subtraction instead of single bit ops
@@ -32,7 +41,8 @@
 
 //use long double as our basic floating point exchange (between encrypted
 //and decrypted values) by default we use double. Using the smaller value
-//means we can loose precision when creating or decrypting SHEFp values.
+//means we can loose precision when creating or decrypting SHEFp values
+//when using interal floating point times of types greater than double.
 //#define SHEFP_ENABLE_LONG_DOUBLE 1
 
 /////////////////////////////////////////////////////////

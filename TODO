@@ -1,11 +1,9 @@
 - Add operation level to to fetching a context.
-- SHEInt->SHEFp and SHEFp->SHEInt casts.
 - increase test coverage.
    - test Encrypted+non-encrypted cases
-   - test all the x= cases.
-   - test against more values (larger, smaller, etc).
+   - test all the operator x= cases.
 - Add arguments to SHETest to change the context under test.
-- Add floating point functions: trig, exp, etc.
+- Add missing math.h functions (see SHEMath.cpp).
 - Add SHEString
 - Add Unordered_map:
   - a version that stores the components unencrypted, but are retrieved
@@ -17,7 +15,8 @@
 - Complete the GenericContext code
 - Add Vector operations
    - use slots in SHEInt to intialize it with a vector.
-   - disable packed recrypt when using vectors.
+   - disable packed recrypt when using vectors. (Question does the underlying
+     add/multiply use backed slots as well?)
    - export SHEInt as vectors.
    - Add vector support to SHEFp (same plan as SHEInt)
    - Add vector support to SHEString

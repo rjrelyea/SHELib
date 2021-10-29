@@ -10,6 +10,7 @@
 #include "SHEInt.h"
 
 // T can be any class that is a target or source of a select(SHEInt, T, T)
+// and has a void T::clear(void) method.
 // function (SHEInt and subclasses, SHEString and subclasses, SHEFp and
 // subclasses, etc.)
 template<class T>

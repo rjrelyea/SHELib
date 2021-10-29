@@ -16,6 +16,14 @@
 SHEPrivateKey *SHEFp::debugPrivKey = nullptr;
 #endif
 
+// should go into a private utils header
+//
+#ifdef SHEFP_USE_CLZ_BUILTIN
+static inline int log2i(int x) { return sizeof(int)*CHAR_BIT - __builtin_clz(x) -1; }
+#else
+static inline int log2i(int x) { int r = 1; while (x >>= 1) r++; return r;}
+#endif
+
 std::ostream *SHEFp::log = nullptr;
 uint64_t SHEFp::nextTmp = 0;
 SHEFpLabelHash SHEFp::labelHash;
@@ -59,7 +67,8 @@ static const int SHE_UINT64_SHIFT=sizeof(uint64_t)*CHAR_BIT-1;
 // can already handle arbitrary length internally). This is not a priority
 // since such large floating point numbers (or integers for that matter)
 // are not yet practical peformancewise.
-static uint64_t i_mantissa(shemaxfloat_t d, int mantissaSize, int expSize) {
+static uint64_t i_mantissa(shemaxfloat_t d, int mantissaSize, int expSize)
+{
     int exp;
     int bias = mkBiasExp(expSize);
     // clamp the size to uint64_t
@@ -79,7 +88,9 @@ static uint64_t i_mantissa(shemaxfloat_t d, int mantissaSize, int expSize) {
     mantissa = mantissa >> (SHE_UINT64_SHIFT - mantissaSize); // truncate
     return mantissa;
 }
-static uint64_t i_exp(shemaxfloat_t d, uint64_t expSize) {
+
+static uint64_t i_exp(shemaxfloat_t d, uint64_t expSize)
+{
     int exp;
     int bias = mkBiasExp(expSize);
     if (d == 0.0) {
@@ -125,6 +136,61 @@ SHEFp::SHEFp(const SHEFp &model, shemaxfloat_t myFloat,const char *label)
     mantissa <<= model.mantissa.getSize() - sizeof(uint64_t)*CHAR_BIT;
   }
 }
+SHEFp::SHEFp(const SHEInt &a, const char *label)
+               : sign(a.isNegative()), exp(a.getPublicKey(), 0, 1, true),
+                 mantissa(a.abs())
+{
+  if (label) labelHash[this]=label;
+
+  // figure out how big to make exponent based on the integer size
+  int expSize = log2(a.getSize()) + 3;
+  exp.reset(expSize, true);
+  exp = mkBiasExp(expSize)+a.getSize();
+
+  // we've already stripped the mantissa sign, now make it unsigned
+  // so that we'll normalize properly
+  mantissa.reset(mantissa.getSize(),true);
+  normalize();
+  // we now have a floating point value that has preserved all the bits
+  // of the input Integer, If this is set to a concrete FP time (like SHEFloat
+  // the various componets will get properly sized.
+}
+
+SHEFp::SHEFp(const SHEFp &model, const SHEInt &a, const char *label)
+               : sign(a.isNegative()), exp(a.getPublicKey(), 0, 1, true),
+                 mantissa(a.abs())
+{
+  if (label) labelHash[this]=label;
+
+  // set the proper bias for the exponent.
+  int expSize = model.exp.getSize();
+  exp.reset(expSize, true);
+  exp = mkBiasExp(expSize)+model.mantissa.getSize();
+
+  // we've already stripped the mantissa sign, now make it unsigned
+  // so that we'll normalize properly
+  mantissa.reset(model.mantissa.getSize(), true);
+  normalize();
+  // now set to the size of the model, avoiding expensive resets.
+}
+
+// caste a Floating point value to a SHEInt
+SHEInt SHEFp::toSHEInt() const
+{
+  SHEInt out(mantissa);
+  SHEInt adjustedExp(exp);
+  adjustedExp.reset(exp.getSize(), false);
+  adjustedExp -= (mantissa.getSize() + mkBiasExp(exp.getSize()));
+  SHEBool max = (this->abs() > (double)UINT_MAX);
+
+  // NOTE: we are doing 2 64bit shifts with encrypted
+  // shift indices. This a very expensive!
+  out = adjustedExp.isNegative().select(out >> -adjustedExp,
+                                        out << adjustedExp);
+  out = max.select((double)UINT_MAX, out);
+  out = sign.select(-out, out);
+  return out;
+}
 
 SHEFp::SHEFp(const SHEPublicKey &pubKey, const unsigned char *encryptedInt,
              int size, const char *label) : sign(pubKey,0,1,true),
@@ -152,18 +218,32 @@ void SHEFp::reset(int expSize, int mantissaSize)
   // it might be better to store exp as a 2's complement number
   // and then truncate would just work (except overflow and under
   // flow).
-  if (expSize < exp.getSize()) {
-    exp -= mkBiasExp(exp.getSize()) - mkBiasExp(expSize);
+  int oldExpSize = exp.getSize();
+  SHEBool saveSpecial(SHEBool(exp,false));
+
+  if (expSize != oldExpSize) {
+    saveSpecial = isSpecial();
   }
-  exp.reset(expSize, true);
-  if (expSize > exp.getSize()) {
-    exp += mkBiasExp(expSize) - mkBiasExp(exp.getSize());
+  if (expSize < oldExpSize) {
+    exp -= mkBiasExp(oldExpSize) - mkBiasExp(expSize);
   }
-  if (mantissaSize >= mantissa.getSize()) {
+  exp.reset(expSize, true);  // noop if expSize == exp.getSize()
+  if (expSize > oldExpSize) {
+    exp += mkBiasExp(expSize) - mkBiasExp(oldExpSize);
+  }
+
+  if (expSize != oldExpSize) {
+    exp = saveSpecial.select(mkSpecialExp(expSize), exp);
+  }
+  if (mantissaSize == mantissa.getSize()) {
+    return;  // nothing more to do.
+  }
+  if (mantissaSize > mantissa.getSize()) {
     mantissa <<= (mantissaSize - mantissa.getSize());
     mantissa.reset(mantissaSize, true);
     return;
   }
+  // matissaSize < mantissa.getSize()
   mantissa >>= (mantissa.getSize() - mantissaSize);
   mantissa.reset(mantissaSize, true);
 }
@@ -216,15 +296,20 @@ void SHEFp::verifyArgs(long level)
 void SHEFp::normalize(void)
 {
   // this is an expensive capacity call, make sure our inputs are good
-  mantissa.verifyArgs(exp);
+  mantissa.verifyArgs(exp, 2*SHEINT_DEFAULT_LEVEL_TRIGGER);
   SHEInt shift(exp, (uint64_t)0);
   SHEBool lbreak(shift,false);
+  SHEBool saveSpecial = isSpecial();
 
   // calculate how for to shift the mantissa. we are looking
   // for the first '1' bit in the mantissa
   for (int i=0; i < mantissa.getSize(); i++) {
     lbreak = lbreak.select(lbreak, mantissa.getBitHigh(i));
-    shift += !lbreak;
+    // add 1 if lbreak is zero without colapsing the size
+    // of shift
+    SHEInt addr(!lbreak);
+    addr.reset(exp.getSize(), true);
+    shift += addr;
   }
   // if we are shifting more than whats left in the exponent,
   // then the resulting number is denormal. exponent will go to zero
@@ -232,9 +317,11 @@ void SHEFp::normalize(void)
   // shift has just come down off a chain of operations and may have
   // diminished capacity, which we will bring into the expensive
   // >> operator
-  shift.verifyArgs(160);
+  shift.verifyArgs(2*SHEINT_DEFAULT_LEVEL_TRIGGER);
   mantissa = mantissa << shift;
   exp -= shift;
+  exp = mantissa.isZero().select(0,exp);
+  exp = saveSpecial.select(mkSpecialExp(exp.getSize()),exp);
 }
 
 void SHEFp::denormalize(const SHEInt &targetExp)
@@ -393,6 +480,26 @@ void SHEFp::readFromJSON(const helib::JsonWrapper& jw)
   helib::executeRedirectJsonError<void>(body);
 }
 
+SHEInt SHEFp::getUnbiasedExp(void) const
+{
+  SHEInt exp_(exp);
+  exp_.reset(exp.getSize(), true);
+  return exp_ - mkBiasExp(exp.getSize());
+}
+
+void SHEFp::setUnbiasedExp(uint64_t e)
+{
+  SHEInt exp_(exp, e + mkBiasExp(exp.getSize()));
+  exp = exp_;
+}
+
+void SHEFp::setUnbiasedExp(const SHEInt &e)
+{
+  SHEInt exp_(e + mkBiasExp(exp.getSize()));
+  exp_.reset(exp.getSize(), true);
+  exp = exp_;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 //                      General helpers
 ///////////////////////////////////////////////////////////////////////////
@@ -421,6 +528,28 @@ shemaxfloat_t SHEFp::decryptRaw(const SHEPrivateKey &privKey) const
     result *= (shemaxfloat_t) shemaxfloat_pow((shemaxfloat_t)2.0,sexp);
   }
   return isign ? -result :result;
+}
+
+// get the maximum value that can be represented by this float.
+shemaxfloat_t SHEFp::getMax() const
+{
+  uint64_t maxExp = (mkSpecialExp(exp.getSize()) -1) - mkBiasExp(exp.getSize());
+  shemaxfloat_t mantissaFract = (shemaxfloat_t)1.0;
+  shemaxfloat_t result = (shemaxfloat_t)0.0;
+  for (int i=0; i < mantissa.getSize(); i++) {
+    mantissaFract /= (shemaxfloat_t)2.0;
+    result += mantissaFract;
+  }
+  result *= (shemaxfloat_t) shemaxfloat_pow((shemaxfloat_t)2.0, maxExp);
+  return result;
+}
+
+// get the value closest to zero that can be represented by this float.
+shemaxfloat_t SHEFp::getMin() const
+{
+  return (shemaxfloat_t)
+          shemaxfloat_pow((shemaxfloat_t).5,
+                          mantissa.getSize()+ mkBiasExp(exp.getSize()));
 }
 
 double SHEFp::securityLevel(void) const
@@ -453,20 +582,45 @@ SHEFp SHEFp::operator-(void) const {
 }
 
 SHEFp SHEFp::operator+(const SHEFp &a) const {
-  SHEBool swap=exp < a.exp;
+  int thisMantissaSize = mantissa.getSize();
+  int aMantissaSize = a.mantissa.getSize();
+  int thisExpSize = exp.getSize();
+  int aExpSize = a.exp.getSize();
+  int maxMantissaSize = thisMantissaSize;
+  int maxExpSize = thisExpSize;
+  SHEFpBool swap(SHEBool(exp, false));
+  SHEFp big(*this, 0.0, "big");
+  SHEFp little(a, 0.0, "little");
 
   if (log) {
     (*log) << (SHEFpSummary) *this << ".operator+("
            << (SHEFpSummary) a << ") = " << std::flush;
   }
 
-  int thisMantissaSize = mantissa.getSize();
-  int aMantissaSize = a.mantissa.getSize();
+  // if the mantissa or exponent sizes mismatch,
+  // reset to the same size before adding.
+  // we need to do this before select, because select will
+  // do a reset, and may change which exponent is larger.
+  if ((thisMantissaSize != aMantissaSize) ||
+      (thisExpSize != aExpSize)) {
+    SHEFp tThis(*this);
+    SHEFp ta(a);
+    maxMantissaSize = std::max(thisMantissaSize, aMantissaSize);
+    maxExpSize = std::max(thisExpSize, aExpSize);
+    tThis.reset(maxExpSize, maxMantissaSize);
+    ta.reset(maxExpSize, maxMantissaSize);
+    swap=tThis.exp < ta.exp;
+    big = swap.select(ta, tThis);
+    little = swap.select(tThis, ta);
+  } else {
+    // already the same size, dispense with the expensive
+    // reset.
+    swap=exp < a.exp;
+    big = swap.select(a, *this);
+    little = swap.select(*this, a);
+  }
 
-  // note: select will return the maximal size between big and little,
-  // so both will have the same size mantissa and exponent.
-  SHEFp big(select(swap, a, *this),"big");
-  SHEFp little(select(swap, *this, a),"little");
+
   big.verifyArgs(little);
   // add 1 bit for sign, 1 bit for overflow
   int mantissaSize = big.mantissa.getSize() + 2;
@@ -478,69 +632,88 @@ SHEFp SHEFp::operator+(const SHEFp &a) const {
   little.mantissa.reset(mantissaSize, false);
 
   // now add the sign.
-  big.mantissa = big.sign.select(-big.mantissa, big.mantissa);
-  little.mantissa = little.sign.select(-little.mantissa, little.mantissa);
+  big.mantissa = select(big.sign, -big.mantissa, big.mantissa);
+  little.mantissa = select(little.sign, -little.mantissa, little.mantissa);
 
   big.mantissa += little.mantissa;
   big.sign = big.mantissa.isNegative();
-  big.mantissa = big.sign.select(-big.mantissa,big.mantissa);
+  big.mantissa = select(big.sign,-big.mantissa,big.mantissa);
   big.mantissa.reset(mantissaSize-1, true); // back to unsigned
   SHEInt overflow = big.mantissa.getBitHigh(0);
   // handle the integer overflow case
   big.exp += overflow;
-  big.mantissa = overflow.select(big.mantissa>>1, big.mantissa);
+  big.mantissa = select(overflow, big.mantissa>>1, big.mantissa);
   big.mantissa.reset(mantissaSize-2, true); // back to normal
   big.normalize();
 
   // finally we need to handle Nan and Inf support
-  // NOTE if both *this and a are special, the results
-  // return whatever special value *this is. Ideally we should
-  // order them. Question what should NAN() + (-NAN()) return
-  // and what should INF + (-INF()) return?
-  big = select(a.isSpecial(), a, big);
-  big = select(isSpecial(), *this, big);
+  // skipping this would increase capacity after this operation, but will
+  // reduce correctness
+  SHEBool aNan = a.isNan();
+  SHEBool aInf = a.isInf();
+  SHEBool thisNan = isNan();
+  SHEBool thisInf = isInf();
+  // -INF +INF generates a new Nan
+  SHEBool gNan = thisInf && aInf && (sign ^ a.sign);
+  SHEFp sNan(*this,NAN);
+  SHEFp sInf(*this,INFINITY);
+  // if we are returning Nan, pick it's sign
+  sNan.sign = thisNan.select(sign, a.sign);
+  // if w are generating the NAN, make the sign +
+  sNan.sign = gNan.select(0,sNan.sign);
+  sInf.sign = thisInf.select(sign,a.sign);
+  big = select(thisInf || aInf, sInf, big);
+  big = select(aNan || thisNan || gNan, sNan, big);
   if (log) (*log) << (SHEFpSummary) big << std::endl;
   return big;
 }
 
-SHEFp SHEFp::operator-(const SHEFp &a) const {
+SHEFp SHEFp::operator-(const SHEFp &a) const
+{
   SHEFp result(*this);
   result += (-a);
   return result;
 }
 
 // += and -= operators return the the same size as the 'this' pointer;
-SHEFp &SHEFp::operator+=(const SHEFp &a) {
+SHEFp &SHEFp::operator+=(const SHEFp &a)
+{
   *this = *this + a;
   return *this;
 }
 
-SHEFp &SHEFp::operator-=(const SHEFp &a) {
+SHEFp &SHEFp::operator-=(const SHEFp &a)
+{
   *this = *this - a;
   return *this;
 }
 
-SHEFp SHEFp::operator+(shemaxfloat_t a) const {
+SHEFp SHEFp::operator+(shemaxfloat_t a) const
+{
   SHEFp aEncrypt(*this, a);
   return *this + aEncrypt;
 }
 
-SHEFp SHEFp::operator-(shemaxfloat_t a) const {
+SHEFp SHEFp::operator-(shemaxfloat_t a) const
+{
   SHEFp aEncrypt(*this, a);
   return *this - aEncrypt;
 }
 
-SHEFp &SHEFp::operator+=(shemaxfloat_t a) {
+SHEFp &SHEFp::operator+=(shemaxfloat_t a)
+{
   SHEFp aEncrypt(*this, a);
   return *this = (*this) + aEncrypt;
 }
 
-SHEFp &SHEFp::operator-=(shemaxfloat_t a) {
+SHEFp &SHEFp::operator-=(shemaxfloat_t a)
+{
   SHEFp aEncrypt(*this, a);
   return *this = (*this) - aEncrypt;
 }
 
-SHEFp SHEFp::operator*(const SHEFp &a) const {
+SHEFp SHEFp::operator*(const SHEFp &a) const
+{
 
   if (log) {
     (*log) << (SHEFpSummary) *this << ".operator*("
@@ -568,7 +741,7 @@ SHEFp SHEFp::operator*(const SHEFp &a) const {
   SHEBool underflow = underflowAmount.isNegative();
   result.exp = underflowAmount;
   result.exp.reset(expSize, true);
-  result.exp = underflow.select(0.0, result.exp);
+  result.exp = underflow.select(0, result.exp);
   result.exp = overflow.select(mkSpecialExp(expSize), result.exp);
   // if underflow was negative, we are going to use it to shift the mantissa
   // make it positive for the shift operator.
@@ -581,15 +754,21 @@ SHEFp SHEFp::operator*(const SHEFp &a) const {
   rmantissa.reset(result.mantissa.getSize(), true);
   // overflow and underflow processing
   rmantissa = underflow.select(rmantissa >> underflowAmount, rmantissa);
-  rmantissa = overflow.select(0.0, rmantissa);
+  rmantissa = overflow.select(0, rmantissa);
   result.mantissa = rmantissa;
   result.normalize();
 
   // now handle all the checks that normally happen at the beginning,
   // but in homomorphic programming, happens at the end.
-  result = select(a.isNan() || isNan(),NAN, result);
-  result = select(a.isInf() || isInf(),INFINITY, result);
-  result = select(a.isZero() || isZero(),0.0, result);
+  SHEBool aInf = a.isInf();
+  SHEBool thisInf = isInf();
+  SHEBool aZero = a.isZero();
+  SHEBool thisZero = isZero();
+  result = select(a.isNan() || isNan(), NAN, result);
+  result = select(aInf || thisInf, INFINITY, result);
+  result = select(aZero || thisZero, 0.0, result);
+  result = select((aZero && thisInf) || (aInf && thisZero), NAN, result);
+
   result.sign = saveSign;
 
   if (log) (*log) << (SHEFpSummary) result << std::endl;
@@ -597,7 +776,8 @@ SHEFp SHEFp::operator*(const SHEFp &a) const {
 }
 
 
-SHEFp &SHEFp::operator*=(const SHEFp &a) {
+SHEFp &SHEFp::operator*=(const SHEFp &a)
+{
   *this = *this * a;
   return (*this);
 }
@@ -607,6 +787,24 @@ SHEFp &SHEFp::operator*=(const SHEFp &a) {
 // multiplication (decreasing the need for bootstraping)
 SHEFp SHEFp::operator*(shemaxfloat_t a) const
 {
+  // process special versions first since
+  // we see the special versions
+  if (a == 0.0 || !std::isfinite(a)) {
+    SHEFp sNan(*this,std::signbit(a) ? -NAN : NAN);
+    SHEFp sInf(*this,std::signbit(a) ? -INFINITY : INFINITY);
+    SHEFp sZero(*this,std::signbit(a) ? -0.0 : 0.0);
+    sNan.sign ^= sign;
+    sInf.sign ^= sign;
+    sZero.sign ^= sign;
+    if (a==0.0) {
+      return select(isInf(),sNan, sInf);
+    } else if (std::isinf(a)) {
+      return select(isZero(), sNan, sInf);
+    } else { // NAN
+      sNan = select(isZero(), sZero, sNan);
+      return select(isInf(), sInf, sNan);
+    }
+  }
   SHEFp aEncrypt(*this, a);
   aEncrypt = *this * aEncrypt;
   return aEncrypt;
@@ -617,7 +815,8 @@ SHEFp &SHEFp::operator*=(shemaxfloat_t a) {
   return *this;
 }
 
-SHEFp SHEFp::operator/(const SHEFp &a) const {
+SHEFp SHEFp::operator/(const SHEFp &a) const
+{
   if (log) {
     (*log) << (SHEFpSummary) *this << ".operator/("
            << (SHEFpSummary) a << ") = " << std::flush;
@@ -668,10 +867,14 @@ SHEFp SHEFp::operator/(const SHEFp &a) const {
 
   // now handle all the checks that normally happen at the beginning,
   // but in homomorphic programming, happens at the end.
-  result = select(a.isNan() || isNan(),NAN, result);
-  result = select(a.isZero() || isInf(),INFINITY, result);
-  result = select(a.isInf() || isZero(),0.0, result);
-  result = select(a.isZero() && isZero(),NAN, result);
+  SHEBool aInf = a.isInf();
+  SHEBool thisInf = isInf();
+  SHEBool aZero = a.isZero();
+  SHEBool thisZero = isZero();
+  result = select(a.isNan() || isNan(), NAN, result);
+  result = select(aZero || thisInf, INFINITY, result);
+  result = select(aInf || thisZero, 0.0, result);
+  result = select(((aZero && thisZero) || (aInf && thisInf)), NAN, result);
   result.sign = saveSign;
 
   if (log) (*log) << (SHEFpSummary) result << std::endl;
@@ -688,11 +891,33 @@ SHEFp &SHEFp::operator/=(const SHEFp &a) {
 }
 
 SHEFp SHEFp::operator/(shemaxfloat_t a) const {
-  if (a == 0.0) {
-    throw helib::LogicError("divide by integer zero");
+  // process special versions first since
+  // we see the special versions
+  if (a == 0.0 || !std::isfinite(a)) {
+    SHEFp sNan(*this, std::signbit(a) ? -NAN : NAN);
+    SHEFp sInf(*this, std::signbit(a) ? -INFINITY : INFINITY);
+    SHEFp sZero(*this, std::signbit(a) ? -0.0 : 0.0);
+    sNan.sign ^= sign;
+    sInf.sign ^= sign;
+    sZero.sign ^= sign;
+    if (a==0.0) {
+      return select(isZero(), sNan, sInf);
+    } else if (std::isinf(a)) {
+      return select(isInf(), sNan, sZero);
+    } else { // NAN
+      sNan = select(isZero(), sInf,sNan);
+      return select(isInf(), sZero, sNan);
+    }
   }
+  // invert before we encrypt when it's cheaper...
+  a = 1.0/a;
   SHEFp aEncrypt(*this, a);
-  return *this / aEncrypt;
+  return *this * aEncrypt;
+}
+
+SHEFp &SHEFp::operator/=(shemaxfloat_t a) {
+  *this = *this / a;
+  return *this;
 }
 
 SHEFp &SHEFp::operator++(void)
@@ -763,14 +988,14 @@ SHEFp select(const SHEInt &sel, const SHEFp &a_true, const SHEFp &a_false)
   SHEFp r_false(a_false);
   int trueMantissaSize=a_true.mantissa.getSize();
   int falseMantissaSize=a_false.mantissa.getSize();
-  int mantissaSize = std::max(trueMantissaSize,falseMantissaSize);
-  r_true.mantissa.reset(mantissaSize, true);
-  r_true.mantissa <<= mantissaSize - trueMantissaSize;
-  r_false.mantissa.reset(mantissaSize, true);
-  r_false.mantissa <<= mantissaSize - falseMantissaSize;
+  int mantissaSize = std::max(a_true.mantissa.getSize(),
+                              a_false.mantissa.getSize());
   int expSize = std::max(r_true.exp.getSize(),r_false.exp.getSize());
-  r_true.exp.reset(expSize,true);
-  r_false.exp.reset(expSize,true);
+  // use reset to make them the same. reset preserves
+  // the underlying FP value (adjusting the exp to account for
+  // changes in the mantissa).
+  r_true.reset(expSize, mantissaSize);
+  r_false.reset(expSize, mantissaSize);
   // handle Nan and Inf
   if (a_true.exp.getSize() != expSize) {
     r_true.exp = a_true.isSpecial().select(mkSpecialExp(expSize),r_true.exp);
@@ -881,6 +1106,16 @@ SHEBool SHEFp::isInf(void) const
   return isSpecial() && (mantissa.isZero());
 }
 
+SHEBool SHEFp::isFinite(void) const
+{
+  return !isSpecial();
+}
+
+SHEBool SHEFp::isNormal(void) const
+{
+  return !isSpecial() && exp.isNotZero();
+}
+
 SHEBool SHEFp::rawGT(const SHEFp &a) const
 {
   if (log) {
@@ -984,4 +1219,3 @@ SHEBool SHEFp::operator==(shemaxfloat_t a) const
     SHEFp heA(*this, a);
     return *this != heA;
 }
-

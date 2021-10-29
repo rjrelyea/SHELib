@@ -11,7 +11,7 @@ CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS -isystem ${HELIB_INCLUDE} -std=
 
 
 #OBJS=SHEKey.o SHEInt.o
-OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o SHEFp.o
+OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o SHEFp.o SHEMath.o
 LIB=libSHELib.a
 PROG=SHETest SHEPerf SHEEval
 
@@ -36,6 +36,7 @@ SHEEval: SHEEval.o ${LIB}
 	g++ -g -c -o $@ ${CPPFLAGS} $<
 
 SHEContext.o: SHEContext.h
+SHEMath.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEFp.h SHEConfig.h SHEMath.h
 SHEFp.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEFp.h SHEConfig.h
 SHEInt.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEConfig.h
 SHEKey.o: SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEConfig.h
