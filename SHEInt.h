@@ -262,6 +262,13 @@ public:
     result.encryptedData[0] = encryptedData[bitSize-1-bit];
     return result;
   }
+  void setBitHigh(int bit, const SHEInt &val) {
+    if ((bit > (bitSize-1)) || (bit < 0)) { return; }
+    if (val.isExplicitZero) { encryptedData[bitSize-1-bit].clear(); return; }
+    if (isExplicitZero) { expandZero(); }
+    encryptedData[bitSize-1-bit] = val.encryptedData[0];
+    return;
+  }
   SHEInt getBit(int bit) const {
     SHEInt result(*pubKey, 0, 1, true);
     if ((bit > (bitSize-1)) || (bit < 0) || isExplicitZero) {
@@ -270,6 +277,13 @@ public:
     result.expandZero();
     result.encryptedData[0] = encryptedData[bit];
     return result;
+  }
+  void setBit(int bit, const SHEInt &val) {
+    if ((bit > (bitSize-1)) || (bit < 0)) { return; }
+    if (val.isExplicitZero) { encryptedData[bit].clear(); return; }
+    if (isExplicitZero) { expandZero(); }
+    encryptedData[bit] = val.encryptedData[0];
+    return;
   }
   const char *getLabel(void) const
   {const char *label = labelHash[this];

@@ -16,12 +16,14 @@ typedef double shemaxfloat_t;
 #define shemaxfloat_frexp(x,y) frexp(x,y)
 #define shemaxfloat_pow(x,y) pow(x,y)
 #define shemaxfloat_abs(x) fabs(x)
+#define shemaxfloat_log(x) log(x)
 #define SHEFP_SNAN SNAN
 #else
 typedef long double shemaxfloat_t;
 #define shemaxfloat_frexp(x,y) frexpl(x,y)
 #define shemaxfloat_pow(x,y) powl(x,y)
 #define shemaxfloat_abs(x) fabsl(x)
+#define shemaxfloat_log(x) logl(x)
 #define SHEFP_SNAN SNANL
 #endif
 
@@ -86,7 +88,7 @@ public:
   // make this a function rather than a cast, because making
   // a cast causes the compiler to choose the wrong select function
   // for floating point selects.
-  SHEInt toSHEInt() const;
+  SHEInt toSHEInt(int bitSize=0) const;
   SHEFp &operator=(shemaxfloat_t val)
   { SHEFp a(*this, val);
     *this = a;
@@ -148,6 +150,9 @@ public:
   SHEBool isInf(void) const;
   SHEBool isNormal(void) const;
   SHEBool isFinite(void) const;
+  // return fraction or integer parts only
+  SHEFp trunc(void) const;
+  SHEFp fract(void) const;
 
   // Operatator ? : can't be overridden,
   // so a?b:c becomes a.select(b,c)

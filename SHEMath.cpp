@@ -395,6 +395,7 @@ SHEFp log1p(const SHEFp &a)
 SHEFp log(const SHEFp &a) { return log1p(a-1.0); }
 SHEFp log10(const SHEFp &a) { return log(a)/M_LN10; }
 SHEFp log2(const SHEFp &a) { return log(a)/M_LN2; }
+SHEFp expm1(const SHEFp &a) { return exp(a-1); }
 
 // get the exponent
 SHEFp logb(const SHEFp &a)
@@ -426,6 +427,22 @@ SHEFp pow(const SHEFp &a, const SHEFp &b)
   return result;
 }
 
+SHEFp pow(shemaxfloat_t a, const SHEFp &b)
+{
+  shemaxfloat_t ln_a = shemaxfloat_log(shemaxfloat_abs(a));
+  SHEFp result = exp(ln_a*b);
+  result.setSign(b.toSHEInt().getBit(0) && std::signbit(a));
+  return result;
+}
+
+SHEFp pow(const SHEFp &a, shemaxfloat_t b)
+{
+  SHEFp ln_a = log(a.abs());
+  SHEFp result = exp(ln_a*b);
+  result.setSign(a.getSign() && ((uint64_t)b&1));
+  return result;
+}
+
 // there is definately faster ways of doing sqrt, but
 // This way has the advantage to knowning when to exit a loop
 SHEFp sqrt(const SHEFp &a)
@@ -433,6 +450,7 @@ SHEFp sqrt(const SHEFp &a)
   return pow(a,SHEFp(a,.5));
 }
 
+// integer and fraction operations
 SHEFp frexp(const SHEFp &a, SHEInt &exp)
 {
   SHEFp result(a);
@@ -441,30 +459,55 @@ SHEFp frexp(const SHEFp &a, SHEInt &exp)
   return result;
 }
 
-// not quite right...
-SHEInt lrint(const SHEFp &a) { return a.toSHEInt(); }
-SHEInt lround(const SHEFp &a) { return a.toSHEInt(); }
+SHEFp trunc(const SHEFp &a) { return a.trunc(); }
+SHEFp ceil(const SHEFp &a)
+{
+  SHEFp result(a.trunc());
+  SHEFp inc = select(a.fract().isZero(),result,result+1.0);
+  return select(a.getSign(), inc, result);
+}
+
+SHEFp floor(const SHEFp &a)
+{
+  SHEFp result(a.trunc());
+  SHEFp dec = select(a.fract().isZero(),result,result-1.0);
+  return select(a.getSign(), result, dec);
+}
+
+SHEFp rint(const SHEFp &a)
+{
+  SHEFp pos(a+.5);
+  SHEFp neg(a-.5);
+  return select(a.getSign(),pos,neg).trunc();
+}
+SHEFp round(const SHEFp &a)
+{
+  return (a+.5).trunc();
+}
+SHEFp nearbyint(const SHEFp &a) { return rint(a); }
+SHEInt lrint(const SHEFp &a) { return rint(a).toSHEInt(); }
+SHEInt lround(const SHEFp &a) { return round(a).toSHEInt(); }
+SHEInt ilogb(const SHEFp &a) { return a.getUnbiasedExp(); }
 
 // most of these are not yet implemented
 SHEFp acos(const SHEFp &a) { return a; }
 SHEFp acosh(const SHEFp &a) { return a; }
+SHEFp cosh(const SHEFp &a) { return a; }
 SHEFp asin(const SHEFp &a) { return a; }
 SHEFp asinh(const SHEFp &a) { return a; }
+SHEFp sinh(const SHEFp &a) { return a; }
 SHEFp atan(const SHEFp &a) { return a; }
 SHEFp atan2(const SHEFp &a, const SHEFp &b) { return a; }
 SHEFp atanh(const SHEFp &a) { return a; }
+SHEFp tanh(const SHEFp &a) { return a; }
+//
 SHEFp cbrt(const SHEFp &a) { return a; }
-SHEFp ceil(const SHEFp &a) { return a; }
-SHEFp cosh(const SHEFp &a) { return a; }
 SHEFp erf(const SHEFp &a) { return a; }
 SHEFp erfc(const SHEFp &a) { return a; }
-SHEFp expm1(const SHEFp &a) { return a; }
 SHEFp fdim(const SHEFp &a, const SHEFp &b) { return a; }
-SHEFp floor(const SHEFp &a) { return a; }
 SHEFp fma(const SHEFp &a, const SHEFp &b, const SHEFp &c) { return a; }
 SHEFp fmod(const SHEFp &a, const SHEFp &b) { return a; }
 SHEFp hypot(const SHEFp &a, const SHEFp &b) { return a; }
-SHEInt ilogb(const SHEFp &a) { return a.toSHEInt(); }
 SHEFp j0(const SHEFp &a) { return a; }
 SHEFp j1(const SHEFp &a) { return a; }
 SHEFp jn(const SHEInt &n, const SHEFp &a) { return a; }
@@ -472,17 +515,12 @@ SHEFp ldexp(const SHEFp &a, const SHEInt &n) { return a; }
 SHEFp lgamma(const SHEFp &a) { return a; }
 SHEFp modf(const SHEFp &a, SHEFp &b) { return a; }
 //SHEFp nan(const char *) { return a; }
-SHEFp nearbyint(const SHEFp &a) { return a; }
 SHEFp nextafter(const SHEFp &a, const SHEFp &b) { return a; }
-//SHEFp nexttoward(const SHEFp &, long const SHEFp &) { return a; }
+//SHEFp nexttoward(const SHEFp &, const SHEFp &) { return a; }
 SHEFp remainder(const SHEFp &a, const SHEFp &b) { return a; }
 SHEFp remquo(const SHEFp &a, const SHEFp &b, SHEInt &c) { return a; }
-SHEFp rint(const SHEFp &a) { return a; }
-SHEFp round(const SHEFp &a) { return a; }
 SHEFp scalbn(const SHEFp &a, const SHEInt &b) { return a; }
-SHEFp tanh(const SHEFp &a) { return a; }
 SHEFp tgamma(const SHEFp &a) { return a; }
-SHEFp trunc(const SHEFp &a) { return a; }
 SHEFp y0(const SHEFp &a) { return a; }
 SHEFp y1(const SHEFp &a) { return a; }
 SHEFp yn(const SHEInt &n, const SHEFp &a) { return a; }

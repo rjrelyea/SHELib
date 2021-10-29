@@ -175,21 +175,52 @@ SHEFp::SHEFp(const SHEFp &model, const SHEInt &a, const char *label)
 }
 
 // caste a Floating point value to a SHEInt
-SHEInt SHEFp::toSHEInt() const
+SHEInt SHEFp::toSHEInt(int bitSize) const
 {
   SHEInt out(mantissa);
   SHEInt adjustedExp(exp);
   adjustedExp.reset(exp.getSize(), false);
   adjustedExp -= (mantissa.getSize() + mkBiasExp(exp.getSize()));
-  SHEBool max = (this->abs() > (double)UINT_MAX);
+  // allow the caller to override our bitsize choice
+  if (bitSize) out.reset(bitSize, true);
+  uint64_t intmax = (1ULL << out.getSize())-1;
+  SHEBool max = (this->abs() > (double)(intmax));
 
-  // NOTE: we are doing 2 64bit shifts with encrypted
-  // shift indices. This a very expensive!
+  // NOTE: we need to balance the cost of doing a double
+  // encrypted shift on bitSize sized ints versus not having
+  // enough bits to properly represent the floating point value.
+  // (64 bit ints shifts are very expensive).
   out = adjustedExp.isNegative().select(out >> -adjustedExp,
                                         out << adjustedExp);
-  out = max.select((double)UINT_MAX, out);
+  out = max.select(intmax, out);
   out = sign.select(-out, out);
   return out;
+}
+
+// truncate the fraction, ingnore the sign
+SHEFp SHEFp::trunc(void) const
+{
+  SHEFp result(*this);
+  SHEInt firstFract = exp - (mkBiasExp(exp.getSize()) + mantissa.getSize());
+
+  for (int i=0; i < mantissa.getSize(); i++) {
+    SHEBool clear(firstFract >= (uint64_t)i);
+    result.mantissa.setBit(i, clear.select(0, result.mantissa.getBit(i)));
+  }
+  return result;
+}
+
+// trucate the integer, ignore the sign
+SHEFp SHEFp::fract(void) const
+{
+  SHEFp result(*this);
+  SHEInt firstFract = exp - (mkBiasExp(exp.getSize()) + mantissa.getSize());
+
+  for (int i=0; i < mantissa.getSize(); i++) {
+    SHEBool clear(firstFract < (uint64_t)i);
+    result.mantissa.setBit(i, clear.select(0, result.mantissa.getBit(i)));
+  }
+  return result;
 }
 
 SHEFp::SHEFp(const SHEPublicKey &pubKey, const unsigned char *encryptedInt,
