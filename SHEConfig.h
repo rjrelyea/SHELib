@@ -52,6 +52,9 @@
 // skip all division tests
 //#define SHE_SKIP_DIV 1
 
+// just do operator+ performance tests
+//#define SHE_PERF_QUICK  1
+
 // use half float instead of float in tests
 //#define SHE_USE_HALF_FLOAT 1
 

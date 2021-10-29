@@ -434,6 +434,15 @@ int main(int argc, char **argv)
   Timer timer;
   int failed = 0;
   int tests = 0;
+  long securityLevel = 19;
+  long capacity = SHE_CONTEXT_CAPACITY_ANY;
+
+  if (argc > 1) {
+    securityLevel = atoi(argv[1]);
+  }
+  if (argc > 2) {
+    capacity = atoi(argv[1]);
+  }
 
 #ifdef notdef
   // logging options
@@ -446,7 +455,7 @@ int main(int argc, char **argv)
   SHEMathSetLog(std::cout);
 
 
-  SHEGenerate_BinaryKey(privkey, pubkey, 19);
+  SHEGenerate_BinaryKey(privkey, pubkey, securityLevel, capacity);
 #ifdef DEBUG
   SHEInt::setDebugPrivateKey(privkey);
   SHEFp::setDebugPrivateKey(privkey);

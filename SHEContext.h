@@ -16,25 +16,32 @@
 // Vectors, used for simultaneous vector math.
 typedef enum {
   SHEContextBinary,
-  SHEContextString,
-  SHEContextVector
+  SHEContextBGV,
+  SHEContextCVV
 } SHEContextType;
 
-typedef std::unordered_map<unsigned long,helib::Context *>SHEContextHash;
+typedef std::unordered_map<long,helib::Context *>SHEContextHash;
+
+#define SHE_CONTEXT_CAPACITY_ANY  0
+#define SHE_CONTEXT_CAPACITY_LOW   600
+#define SHE_CONTEXT_CAPACITY_HIGH  900
 
 class SHEContext
 {
 private:
   static std::ostream *log;
   static  SHEContextHash binaryDatabase;
-  static  SHEContextHash stringDatabase;
-  static  SHEContextHash vectorDatabase;
+  static  SHEContextHash bgvDatabase;
+  static  SHEContextHash cvvDatabase;
   static SHEContextHash *GetContextHash(SHEContextType type);
   static helib::Context *GetNewGenericContext(long prime, long securityLevel,
-                                              long operationLevels);
-  static helib::Context *GetNewStringContext(long securityLevel);
-  static helib::Context *GetNewVectorContext(long securityLevel);
-  static helib::Context *GetNewBinaryContext(long securityLevel);
+                                              long capacity);
+  static helib::Context *GetNewBGVContext(long &securityLevel,
+                                          long &capacity);
+  static helib::Context *GetNewCVVContext(long &securityLevel,
+                                          long &capacity);
+  static helib::Context *GetNewBinaryContext(long &securityLevel,
+                                             long &capacity);
   static helib::Context *BuildBootstrappableContext(long p, long m,
                                        long securityLevel,
                                        long levels, long r, long c,
@@ -44,12 +51,13 @@ private:
 public:
   static constexpr std::string_view typeName = "SHEContext";
   static helib::Context *GetContext(SHEContextType type,
-                                    unsigned long securityLeve);
+                                    long &securityLevel, long &capacity);
   static const char *GetContextTypeLabel(SHEContextType type);
   static long GetContextTypeValue(SHEContextType type);
   static SHEContextType GetContextType(long value);
   static SHEContextType GetContextType(char *value);
-  static void FreeContext(SHEContextType type, unsigned long securityLevel);
+  static void FreeContext(SHEContextType type, long securityLevel,
+                          long capacity=SHE_CONTEXT_CAPACITY_ANY);
   static void setLog(std::ostream &str) { log = &str; }
 };
 #endif

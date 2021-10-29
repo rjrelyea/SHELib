@@ -17,14 +17,15 @@ private:
   bool hasEncoding;
   SHEContextType type;
   long contextSecurityLevel;
+  long contextCapacity;
   std::vector<helib::zzX> unpackSlotEncoding;
 public:
   static constexpr std::string_view typeName = "SHEPublicKey";
   ~SHEPublicKey() {}
   SHEPublicKey(): empty(true), publicKey(nullptr), hasEncoding(false) {}
-  SHEPublicKey(helib::PubKey *pubKey, SHEContextType type_, long sl):
+  SHEPublicKey(helib::PubKey *pubKey, SHEContextType type_, long sl, long cap):
     empty(false), publicKey(nullptr), hasEncoding(false), type(type_),
-    contextSecurityLevel(sl)
+    contextSecurityLevel(sl), contextCapacity(cap)
     { publicKey = pubKey; }
   SHEPublicKey &operator=(const SHEPublicKey &pubKey) {
     empty = pubKey.empty;
@@ -42,6 +43,7 @@ public:
     if (!empty) {
       type = pubKey.type;
       contextSecurityLevel = pubKey.contextSecurityLevel;
+      contextCapacity = pubKey.contextCapacity;
       publicKey = pubKey.publicKey;
     }
     return *this;
@@ -99,12 +101,14 @@ private:
   helib::SecKey *privateKey;
   SHEContextType type;
   long contextSecurityLevel;
+  long contextCapacity;
 public:
  static constexpr std::string_view typeName = "SHEPrivateKey";
   ~SHEPrivateKey() { }
   SHEPrivateKey(): empty(true), privateKey(nullptr) {}
-  SHEPrivateKey(helib::SecKey *secKey, SHEContextType type_, long sl):
-    empty(false), privateKey(nullptr) , type(type_), contextSecurityLevel(sl)
+  SHEPrivateKey(helib::SecKey *secKey, SHEContextType type_, long sl, long cap):
+    empty(false), privateKey(nullptr) , type(type_), contextSecurityLevel(sl),
+    contextCapacity(cap)
     { privateKey = secKey; }
   SHEPrivateKey &operator=(const SHEPrivateKey &privKey) {
     empty = privKey.empty;
@@ -112,6 +116,7 @@ public:
     if (!empty) {
       type = privKey.type;
       contextSecurityLevel = privKey.contextSecurityLevel;
+      contextCapacity = privKey.contextCapacity;
       privateKey = privKey.privateKey;
     }
     return *this;
@@ -149,5 +154,6 @@ std::istream&operator>>(std::istream&, SHEPrivateKey &pubKey);
 std::ostream&operator<<(std::ostream&, const SHEPrivateKey &pubKey);
 
 void SHEGenerate_BinaryKey(SHEPrivateKey &privKey, SHEPublicKey &pubKey,
-                          int securityLevel=80);
+                           long securityLevel=80,
+                           long capacity=SHE_CONTEXT_CAPACITY_ANY);
 #endif

@@ -1,8 +1,6 @@
-- Add operation level to to fetching a context.
 - increase test coverage.
    - test Encrypted+non-encrypted cases
    - test all the operator x= cases.
-- Add arguments to SHETest to change the context under test.
 - Add missing math.h functions (see SHEMath.cpp).
 - Add SHEString
 - Add Unordered_map:

@@ -11,8 +11,8 @@
 #include "SHEContext.h"
 
 SHEContextHash SHEContext::binaryDatabase;// = {0};
-SHEContextHash SHEContext::stringDatabase;// = {0};
-SHEContextHash SHEContext::vectorDatabase;// = {0};
+SHEContextHash SHEContext::bgvDatabase;// = {0};
+SHEContextHash SHEContext::cvvDatabase;// = {0};
 std::ostream *SHEContext::log = nullptr;
 
 static const struct {
@@ -21,8 +21,8 @@ static const struct {
   const char *name;
 } contextTypeTable[] = {
   { SHEContextBinary, 1, "SHEContextBinary" },
-  { SHEContextString, 2, "SHEContextString" },
-  { SHEContextVector, 3, "SHEContextVector" }
+  { SHEContextBGV, 2, "SHEContextBGV" },
+  { SHEContextCVV, 3, "SHEContextCVV" }
 };
 
 static const int contextTypeTableSize=sizeof(contextTypeTable)/
@@ -451,7 +451,7 @@ getMvec(long p, long m, const std::vector<long> *ords)
 }
 
 static std::vector<long>
-buildVector(long *m, int count)
+buildVector(const long *m, int count)
 {
   std::vector<long> vectors;
   /* trial divide by all the primes < 32 bits */
@@ -471,10 +471,10 @@ SHEContext::GetContextHash(SHEContextType type)
   switch(type) {
   case SHEContextBinary:
     return &binaryDatabase;
-  case SHEContextString:
-    return &stringDatabase;
-  case SHEContextVector:
-    return &vectorDatabase;
+  case SHEContextBGV:
+    return &bgvDatabase;
+  case SHEContextCVV:
+    return &cvvDatabase;
   // don't add default so the compiler will warn is when SHEContextType
   // is expanded
   };
@@ -571,14 +571,14 @@ SHEContext::BuildBootstrappableContext(long p, long m, long securityLevel,
 
 helib::Context *
 SHEContext::GetNewGenericContext(long prime, long securityLevel,
-                                 long operationLevels)
+                                 long capacity)
 {
   // find an appropriate M with the given security level and operation
   // levels, and a prime we use 2 columns, and we need 128 slots to handle
   // recrypt of two 64 bit values
   long c = 2;
   long r = 1;
-  long m = helib::FindM(securityLevel+200, operationLevels,
+  long m = helib::FindM(securityLevel+200, capacity,
                         c, prime, 1, 128, 0);
 
   // sigh, getMvec doesn't know how to split p^N values in order to
@@ -590,66 +590,86 @@ SHEContext::GetNewGenericContext(long prime, long securityLevel,
   std::vector<long> ords = makeOrds(prime, mvec);
   std::vector<long> gens = makeGens(m, ords);
 
-  return BuildBootstrappableContext(prime, m, securityLevel, operationLevels,
+  return BuildBootstrappableContext(prime, m, securityLevel, capacity,
                                     r, c, mvec, ords, gens);
 }
 
 helib::Context *
-SHEContext::GetNewStringContext(long securityLevel)
+SHEContext::GetNewBGVContext(long &securityLevel, long &capacity)
 {
-  helib::assertTrue(false,"String Context not implemented");
+  helib::assertTrue(false,"non binary BGV Context not implemented");
   return nullptr;
 }
 
 helib::Context *
-SHEContext::GetNewVectorContext(long securityLevel)
+SHEContext::GetNewCVVContext(long &securityLevel, long &capacity)
 {
-  helib::assertTrue(false,"Vector Context not implemented");
+  helib::assertTrue(false,"CVV Context not implemented");
   return nullptr;
 }
 
-helib::Context *
-SHEContext::GetNewBinaryContext(long securityLevel)
+static const struct SHEContextParams *
+findBinaryParams(long securityLevel, long capacity)
 {
+  struct SHEContextParams &params=
+                       binaryContextParams[binaryContextParamsTableSize-1];
+
+  // we currently only support 2 binary operation levels, 600 and 900.
+  // 600 is the smallest practical level.
+  if (capacity != SHE_CONTEXT_CAPACITY_ANY) {
+    if (capacity  <= SHE_CONTEXT_CAPACITY_LOW) {
+      capacity == SHE_CONTEXT_CAPACITY_LOW;
+    } else {
+      capacity == SHE_CONTEXT_CAPACITY_HIGH;
+    }
+  }
+
+  for (int i=0; i < binaryContextParamsTableSize; i++) {
+    if ((binaryContextParams[i].securityLevel >= securityLevel)
+       && ((capacity == SHE_CONTEXT_CAPACITY_ANY)  ||
+            binaryContextParams[i].L == capacity)) {
+      return &binaryContextParams[i];
+      break;
+    }
+  }
+  return &binaryContextParams[binaryContextParamsTableSize-1];
+}
+
+
+helib::Context *
+SHEContext::GetNewBinaryContext(long &securityLevel, long &capacity)
+{
+#ifdef SHECONTEXT_USE_TABLE
+  const struct SHEContextParams *params= findBinaryParams(securityLevel,
+                                                          capacity);
+  securityLevel = params->securityLevel;
+  capacity = params->L;
+
+  long m = params->m;
+  // binary params have the same next parameters
+  long p = params->p; //using binary polynomials
+  long r = params->r; // Hansel listing
+  long c = params->c; // key switching columns
+  long levels= params->L; // bits of modulus, related to the number of levels we can
+                    // do. This should be bigenough to get through one loop
+                    // of the udivRaw loop after a bootstrap.
+  // helib::FindM(securityLevel, levels, c, p, d, s, 0, true);// 4095;
+  // build gens and ords from the table
+  // ideally we would like to auto generate them at some point
+  std::vector<long> gens = buildVector(params->gens,
+                                       SHE_ARRAY_SIZE(params->ords));
+  std::vector<long> ords = buildVector(params->ords,
+                                       SHE_ARRAY_SIZE(params->ords));
+  // we get hve the smarts to build the mvec on the fly
+  std::vector<long> mvec = getMvec(p, m, &ords);
+
+#else
   // The hard part of generating the key is setting up
   // all the parameters. Since we are doing a binary key, p is set to 2
   // we set r, c, s, and bits to values in the binary sample code.
   // We use FindM to find the cyclotomic polynomial (m). From those
   // parameters and the security level. We let the builder find the
   // generators, their orders, and the factorization of m.
-#ifdef SHECONTEXT_USE_TABLE
-  struct SHEContextParams &params=
-                       binaryContextParams[binaryContextParamsTableSize-1];
-
-  for (int i=0; i < binaryContextParamsTableSize; i++) {
-    if (binaryContextParams[i].securityLevel >= securityLevel) {
-      params = binaryContextParams[i];
-      break;
-    }
-  }
-  // future: call GenericContext to get secrity parameters that don't match
-  // here.
-
-  long m = params.m;
-  // binary params have the same next parameters
-  long p = params.p; //using binary polynomials
-  long r = params.r; // Hansel listing
-  long c = params.c; // key switching columns
-  long levels= params.L; // bits of modulus, related to the number of levels we can
-                    // do. This should be bigenough to get through one loop
-                    // of the udivRaw loop after a bootstrap.
-  // helib::FindM(securityLevel, levels, c, p, d, s, 0, true);// 4095;
-  // build gens and ords from the table
-  // ideally we would like to auto generate them at some point
-  std::vector<long> gens = buildVector(params.gens,
-                                       SHE_ARRAY_SIZE(params.ords));
-  std::vector<long> ords = buildVector(params.ords,
-                                       SHE_ARRAY_SIZE(params.ords));
-  // we get hve the smarts to build the mvec on the fly
-  std::vector<long> mvec = getMvec(p, m, &ords);
-  securityLevel = params.securityLevel;
-
-#else
 
   // generating bootsrappable contexts from first principles is difficult
   // we often fail in basic steps below.. for now we use the magic parameters
@@ -672,22 +692,40 @@ SHEContext::GetNewBinaryContext(long securityLevel)
                                     mvec, ords, gens);
 }
 
+static long
+makeIndex(SHEContextType type, long securityLevel, long capacity)
+{
+  switch (type) {
+  case SHEContextBinary:
+  {
+     const struct SHEContextParams *params= findBinaryParams(securityLevel,
+                                                             capacity);
+     return (params->L << 16) | (params->securityLevel);
+  }
+  case SHEContextBGV:
+  case SHEContextCVV:
+  default:
+     break;
+  }
+  return 0;
+}
 
 void
-SHEContext::FreeContext(SHEContextType type, unsigned long securityLevel)
+SHEContext::FreeContext(SHEContextType type, long securityLevel, long capacity)
 {
   SHEContextHash *hash = SHEContext::GetContextHash(type);
   helib::Context *context;
 
-  context = (*hash)[securityLevel];
-  (*hash)[securityLevel] = nullptr;
+  long index=makeIndex(type, securityLevel, capacity);
+  context = (*hash)[index];
+  (*hash)[index] = nullptr;
   if (context != nullptr) {
     delete context;
   }
 }
 
 helib::Context *
-SHEContext::GetContext(SHEContextType type, unsigned long securityLevel)
+SHEContext::GetContext(SHEContextType type, long &securityLevel, long &capacity)
 {
   SHEContextHash *hash = SHEContext::GetContextHash(type);
   helib::Context *context;
@@ -696,23 +734,24 @@ SHEContext::GetContext(SHEContextType type, unsigned long securityLevel)
     helib::assertTrue(false,"Unknown ContextType");
     return nullptr;
   }
-  context = (*hash)[securityLevel];
+  long index = makeIndex(type, securityLevel, capacity);
+  context = (*hash)[index];
   if (context != nullptr) {
     return context;
   }
 
   switch (type) {
   case SHEContextBinary:
-    context = GetNewBinaryContext(securityLevel);
-    (*hash)[securityLevel] = context;
+    context = GetNewBinaryContext(securityLevel, capacity);
+    (*hash)[index] = context;
     return context;
-  case SHEContextString:
-    context = GetNewStringContext(securityLevel);
-    (*hash)[securityLevel] = context;
+  case SHEContextBGV:
+    context = GetNewBGVContext(securityLevel, capacity);
+    (*hash)[index] = context;
     return context;
-  case SHEContextVector:
-    context = GetNewVectorContext(securityLevel);
-    (*hash)[securityLevel] = context;
+  case SHEContextCVV:
+    context = GetNewCVVContext(securityLevel, capacity);
+    (*hash)[index] = context;
     return context;
   }
   helib::assertTrue(false,"Unknown ContextType");

@@ -4,8 +4,7 @@
 #include <iostream>
 #include "SHEKey.h"
 #include "SHEInt.h"
-
-#define SHEPERF_QUICK 1
+#include "SHEConfig.h"
 
 // simple timer harvested from the internet.
 #include "SHETime.h"
@@ -15,7 +14,7 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
 {
    SHEBool rb(r);
    Timer timer;
-#ifdef SHEPERF_QUICK
+#ifdef SHE_PERF_QUICK
    timer.start();
    std::cout << "  > a+b: " << std::flush;
    r = a + b;
@@ -43,7 +42,7 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
    r = a * b;
    timer.stop();
    std::cout << (PrintTime) timer.elapsedMilliseconds() << std::endl;
-#ifdef SHE_PERF_INCLUDE_DIV
+#ifndef SHE_SKIP_DIV
    std::cout << "  > a/b: " <<  std::flush;
    timer.start();
    r = a / b;
@@ -79,12 +78,12 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
    std::cout << (PrintTime) timer.elapsedMilliseconds() << std::endl;
    std::cout << "  >boostrap time: " << std::flush;
    timer.start();
-   r.recrypt();
+   r.reCrypt();
    timer.stop();
    std::cout << (PrintTime) timer.elapsedMilliseconds() << std::endl;
    std::cout << "  >double boostrap time: " << std::flush;
    timer.start();
-   r.recrypt(a);
+   r.reCrypt(a);
    timer.stop();
    std::cout << (PrintTime) timer.elapsedMilliseconds() << std::endl;
 #endif
@@ -205,6 +204,15 @@ int main(int argc, char **argv)
    SHEPublicKey pubkey;
    SHEPrivateKey privkey;
    Timer timer;
+ int level= 0;
+  int lastLevel = 200;
+
+  if (argc > 1) {
+     level = atoi(argv[1]);
+  }
+  if (argc > 2) {
+     lastLevel = atoi(argv[2]);
+  }
 
 #ifdef notdef
    SHEContext::setLog(std::cout);
@@ -219,6 +227,10 @@ int main(int argc, char **argv)
    for (int i=0 ; i < sizeof(security_level)/sizeof(int) ; i++) {
      SHEPublicKey pubkey;
      SHEPrivateKey privkey;
+
+    if (security_level[i] < level) continue;
+    if (security_level[i] > lastLevel) break;
+
      std::cout << "----------------- security level "
                << security_level[i] << " ------------------" << std::endl;
      timer.start();
