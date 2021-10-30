@@ -23,13 +23,30 @@ SHEFp copysign(const SHEFp &a, const SHEFp &b)
   return result;
 }
 
+SHEFp copysign(shemaxfloat_t a, const SHEFp &b)
+{
+  SHEFp result(b);
+  result.setSign(SHEBool(b.getSign(),std::signbit(a)));
+  return result;
+}
+
+SHEFp copysign(const SHEFp &a, shemaxfloat_t b)
+{
+  SHEFp result(a,b);
+  result.setSign(a.getSign());
+  return result;
+}
+
 // simple functions we could probably make inline in math.h
 SHEFp fmax(const SHEFp &a, const SHEFp &b) { return select((a>b), a, b); }
+SHEFp fmax(shemaxfloat_t a, const SHEFp &b) { return select((a>b), a, b); }
+SHEFp fmax(const SHEFp &a, shemaxfloat_t &b) { return select((a>b), a, b); }
 SHEFp fmin(const SHEFp &a, const SHEFp &b) { return select((a<b), a, b); }
+SHEFp fmin(shemaxfloat_t a, const SHEFp &b) { return select((a<b), a, b); }
+SHEFp fmin(const SHEFp &a, shemaxfloat_t b) { return select((a<b), a, b); }
 SHEFp fabs(const SHEFp &a) { return a.abs(); }
 
 // Trig functions use the power series.
-
 // reduce to a to a mod pi/2
 // q is the pi/2 quadrant from 0 to 2pi.
 static SHEFp trigReduce(const SHEFp &a, SHEInt &q)
@@ -441,7 +458,7 @@ static SHEFp _log(const SHEFp &a)
   for (int i=0; i < 5; i++) {
     mantissaClear.setBitHigh(i,zbit);
   }
-  fract.setMantissa(SHEBool(notDenormal).select(mantissaClear, 
+  fract.setMantissa(SHEBool(notDenormal).select(mantissaClear,
                                                 mantissaDenormal));
   fract.normalize();
   if (sheMathLog)
@@ -577,6 +594,12 @@ SHEFp frexp(const SHEFp &a, SHEInt &exp)
   return result;
 }
 
+SHEFp modf(const SHEFp &a, SHEFp &b)
+{
+  b = a.trunc();
+  return a.fract();
+}
+
 SHEFp trunc(const SHEFp &a) { return a.trunc(); }
 SHEFp ceil(const SHEFp &a)
 {
@@ -609,7 +632,66 @@ SHEInt lrint(const SHEFp &a) { return rint(a).toSHEInt(); }
 SHEInt lround(const SHEFp &a) { return round(a).toSHEInt(); }
 SHEInt ilogb(const SHEFp &a) { return a.getUnbiasedExp(); }
 
-// most of these are not yet implemented
+// remainder functions
+SHEFp fmod(const SHEFp &a, const SHEFp &b)
+{
+  SHEFp n = floor(a/b);
+  return a-n*b;
+}
+
+SHEFp fmod(shemaxfloat_t a, const SHEFp &b)
+{
+  SHEFp n = floor(a/b);
+  return a-n*b;
+}
+
+SHEFp fmod(const SHEFp &a, shemaxfloat_t b)
+{
+  SHEFp n = floor(a/b);
+  return a-n*b;
+}
+
+SHEFp remainder(const SHEFp &a, const SHEFp &b)
+{
+  SHEFp n = round(a/b);
+  return a-n*b;
+}
+
+SHEFp remainder(shemaxfloat_t a, const SHEFp &b)
+{
+  SHEFp n = round(a/b);
+  return a-n*b;
+}
+
+SHEFp remainder(const SHEFp &a, shemaxfloat_t b)
+{
+  SHEFp n = round(a/b);
+  return a-n*b;
+}
+
+SHEFp remquo(const SHEFp &a, const SHEFp &b, SHEInt &q)
+{
+  SHEFp n = round(a/b);
+  q = n.toSHEInt(q.getSize());
+  return a-n*b;
+}
+
+SHEFp remquo(shemaxfloat_t a, const SHEFp &b, SHEInt &q)
+{
+  SHEFp n = round(a/b);
+  q = n.toSHEInt(q.getSize());
+  return a-n*b;
+}
+
+SHEFp remquo(const SHEFp &a, shemaxfloat_t b, SHEInt &q)
+{
+  SHEFp n = round(a/b);
+  q = n.toSHEInt(q.getSize());
+  return a-n*b;
+}
+
+
+// these are not yet implemented
 SHEFp acos(const SHEFp &a) { return a; }
 SHEFp acosh(const SHEFp &a) { return a; }
 SHEFp cosh(const SHEFp &a) { return a; }
@@ -626,19 +708,15 @@ SHEFp erf(const SHEFp &a) { return a; }
 SHEFp erfc(const SHEFp &a) { return a; }
 SHEFp fdim(const SHEFp &a, const SHEFp &b) { return a; }
 SHEFp fma(const SHEFp &a, const SHEFp &b, const SHEFp &c) { return a; }
-SHEFp fmod(const SHEFp &a, const SHEFp &b) { return a; }
 SHEFp hypot(const SHEFp &a, const SHEFp &b) { return a; }
 SHEFp j0(const SHEFp &a) { return a; }
 SHEFp j1(const SHEFp &a) { return a; }
 SHEFp jn(const SHEInt &n, const SHEFp &a) { return a; }
 SHEFp ldexp(const SHEFp &a, const SHEInt &n) { return a; }
 SHEFp lgamma(const SHEFp &a) { return a; }
-SHEFp modf(const SHEFp &a, SHEFp &b) { return a; }
 //SHEFp nan(const char *) { return a; }
 SHEFp nextafter(const SHEFp &a, const SHEFp &b) { return a; }
 //SHEFp nexttoward(const SHEFp &, const SHEFp &) { return a; }
-SHEFp remainder(const SHEFp &a, const SHEFp &b) { return a; }
-SHEFp remquo(const SHEFp &a, const SHEFp &b, SHEInt &c) { return a; }
 SHEFp scalbn(const SHEFp &a, const SHEInt &b) { return a; }
 SHEFp tgamma(const SHEFp &a) { return a; }
 SHEFp y0(const SHEFp &a) { return a; }

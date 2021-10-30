@@ -755,14 +755,14 @@ SHEInt &SHEInt::udivRaw(const SHEInt &div, SHEInt *result, SHEInt *mod) const
     remainder = (q || sel).select(remainder, t);
   }
   if (result) {
+    *result = quotient;
     if (log) (*log) << "udivRaw.result=" << (SHEIntSummary) *result
                     << std::endl;
-    *result = quotient;
   }
   if (mod) {
+    *mod = remainder;
     if (log) (*log) << "udivRaw.mod=" << (SHEIntSummary) *mod
                     << std::endl;
-    *mod = quotient;
   }
    return result ? *result : *mod;
 }
