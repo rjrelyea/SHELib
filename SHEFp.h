@@ -18,6 +18,8 @@ typedef double shemaxfloat_t;
 #define shemaxfloat_abs(x) fabs(x)
 #define shemaxfloat_log(x) log(x)
 #define SHEFP_SNAN SNAN
+#define SHEFP_USE_DOUBLE 1
+#undef SHEFP_USE_LONG_DOUBLE
 #else
 typedef long double shemaxfloat_t;
 #define shemaxfloat_frexp(x,y) frexpl(x,y)
@@ -25,6 +27,8 @@ typedef long double shemaxfloat_t;
 #define shemaxfloat_abs(x) fabsl(x)
 #define shemaxfloat_log(x) logl(x)
 #define SHEFP_SNAN SNANL
+#define SHEFP_USE_LONG_DOUBLE 1
+#undef SHEFP_USE_DOUBLE
 #endif
 
 
@@ -60,7 +64,6 @@ protected:
   // used so the parent can reset the bit sizes to the proper native values to
   // those of the child class.
   virtual void resetNative(void) const { } // parent has no native values
-  void normalize(void);
   void denormalize(const SHEInt &targetexp);
   // raw GT comparison that ignores Nans
   SHEBool rawGT(const SHEFp &a) const;
@@ -100,6 +103,7 @@ public:
   // read an int from the stream
   SHEFp(const SHEPublicKey &pubkey, std::istream &str,
          const char *label=nullptr);
+  void normalize(void);
   // arithmetic operators
   SHEFp operator-(void) const;
   SHEFp abs(void) const;
@@ -273,6 +277,28 @@ SHEFp select(const SHEInt &b, const SHEFp &a_true, const SHEFp &a_false);
 SHEFp select(const SHEInt &b, const SHEFp &a_true, shemaxfloat_t a_false);
 SHEFp select(const SHEInt &b, shemaxfloat_t a_true, const SHEFp &a_false);
 SHEFp select(const SHEInt &b, shemaxfloat_t a_true, shemaxfloat_t a_false);
+// fetch from an array based on an encrypted index
+inline SHEFp getArray(const SHEFp &_default, shemaxfloat_t *a,  int size,
+                      const SHEInt &index)
+{
+  SHEFp retVal(_default);
+  for (int i=0; i < size; i++) {
+    retVal = select(i == index, a[i], retVal);
+  }
+  return retVal;
+}
+
+inline SHEFp getVector(const SHEFp &_default,
+                       const std::vector<shemaxfloat_t> &a,
+                       const SHEInt &index)
+{
+  SHEFp retVal(_default);
+  for (int i=0; i < a.size(); i++) {
+    retVal = select(i == index, a[i], retVal);
+  }
+  return retVal;
+}
+
 
 // allow SHEBool.select(SHEFp, SHEFp) output
 class SHEFpBool : public SHEInt {
@@ -327,7 +353,15 @@ public:              \
              { SHEFp a_(*this,(shemaxfloat_t)a); return *this=a_; } \
     type decrypt(SHEPrivateKey &privKey)  \
             { return (type) decryptRaw(privKey); }; \
-};
+}; \
+//inline name operator[](const std::vector<type> &a,  const SHEInt &index) \
+//{ \
+//  name retVal(index.getPublicKey(), 0.0); \
+//  for (int i=0; i < a.size; i++) { \
+//    retVal = select(i == index, a[i], retVal); \
+//  } \
+//  return retVal; \
+//}
 
 // define classes for the various float types.
 // halfFlaot anb BFloat16 don't have native types,

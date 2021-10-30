@@ -1,7 +1,9 @@
 #
 # Simple Makefile: Todo move to some form of automake (cmake, etc.)
 #
+ifndef HELIB_DIR
 HELIB_DIR=/usr
+endif
 HELIB_INCLUDE=${HELIB_DIR}/include
 HELIB_LIB=${HELIB_DIR}/lib64
 
@@ -21,8 +23,8 @@ clean:
 	rm -rf ${LIB} ${OBJS} ${PROG}
 
 install: ${LIB} ${PROG}
-        mkdir -p ${DEST}/${HELIB_DIR}
-        mkdir -p ${DEST}/usr/bin
+	mkdir -p ${DEST}/${HELIB_DIR}
+	mkdir -p ${DEST}/usr/bin
 	install -c -m 0644 ${LIB} ${DESTDIR}/${HELIB_DIR}
 	install -c -m 0755 ${PROG} ${DESTDIR}/usr/bin
 

@@ -389,6 +389,28 @@ inline  SHEInt select(const SHEInt &sel, uint64_t a_true,
 inline  SHEInt select(const SHEInt &sel, uint64_t a_true,
                       uint64_t a_false)
        { return sel.select(a_true, a_false); }
+// fetch from an array based on an encrypted index
+inline SHEInt getArray(const SHEInt &_default, const uint64_t *a,  int size,
+                       const SHEInt &index)
+{
+  SHEInt retVal(_default);
+  for (int i=0; i < size; i++) {
+    retVal = select(i == index, a[i], retVal);
+  }
+  return retVal;
+} 
+
+inline SHEInt getVector(const SHEInt &_default, const std::vector<uint64_t> &a,
+                        const SHEInt &index)
+{
+  SHEInt retVal(_default);
+  for (int i=0; i < a.size(); i++) {
+    retVal = select(i == index, a[i], retVal);
+  }
+  return retVal;
+} 
+
+//
 // why macros instead of templates? because we can freely mix
 // constant values in that will select the appropriate select
 // function (SHEFp and float, SHEInt and ints
@@ -424,7 +446,15 @@ public:              \
              { SHEInt a_(*this,(uint64_t)a); return *this=a_; } \
     type decrypt(SHEPrivateKey &privKey)  \
             { return (type) decryptRaw(privKey); }; \
-};
+}; \
+//inline name operator[](const std::vector<type> &a, const SHEInt &index) { \
+//   name retVal(b.getPublicKey(),0); \
+//    for (int i=0; i < a.size(); i++) { \
+//      retVal = select(i == index, a[i], retVal); \
+//    } \
+//    return retVal; \
+//}
+
 
 #define SHEINT_LOG2_64 6
 NEW_INT_CLASS(SHEInt8,     int8_t,  8, false)
