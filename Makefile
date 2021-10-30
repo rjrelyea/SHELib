@@ -1,7 +1,7 @@
 #
 # Simple Makefile: Todo move to some form of automake (cmake, etc.)
 #
-HELIB_DIR=/builds/HElib/helib_pack
+HELIB_DIR=/usr
 HELIB_INCLUDE=${HELIB_DIR}/include
 HELIB_LIB=${HELIB_DIR}/lib64
 
@@ -19,6 +19,12 @@ all: ${LIB} ${PROG}
 
 clean:
 	rm -rf ${LIB} ${OBJS} ${PROG}
+
+install: ${LIB} ${PROG}
+        mkdir -p ${DEST}/${HELIB_DIR}
+        mkdir -p ${DEST}/usr/bin
+	install -c -m 0644 ${LIB} ${DESTDIR}/${HELIB_DIR}
+	install -c -m 0755 ${PROG} ${DESTDIR}/usr/bin
 
 libSHELib.a: ${OBJS}
 	ar -r $@ $?

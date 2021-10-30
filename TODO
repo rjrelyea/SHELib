@@ -6,6 +6,8 @@
 - Add Unordered_map:
   - a version that stores the components unencrypted, but are retrieved
     encrypted.
+- Improve FP performance by switching from offset to native exp, and
+  tracking nan and inf status with separate bools.
 - Create detailed documentation on each function
 - Create 3, 4, 5, and 6 variable versions of needRecrypt, verifyArgs, and
   reCrypt.
