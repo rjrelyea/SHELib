@@ -10,6 +10,7 @@ VCS:        {{{ git_dir_vcs }}}
 Source: {{{ git_dir_pack }}}
 
 BuildRequires: HElib > 2.0.0
+BuildRequires: gmp-devel
 
 %description
 Homomorphic Encryption allows you to send encrypted data to a third party
