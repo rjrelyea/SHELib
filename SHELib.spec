@@ -11,6 +11,8 @@ Source: {{{ git_dir_pack }}}
 
 BuildRequires: HElib > 2.0.0
 BuildRequires: gmp-devel
+BuildRequires: gcc-c++
+BuildRequires: make
 
 %description
 Homomorphic Encryption allows you to send encrypted data to a third party

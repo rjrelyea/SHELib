@@ -27,12 +27,12 @@ clean:
 	rm -rf ${LIB} ${OBJS} ${PROG}
 
 install: ${LIB} ${PROG}
-	mkdir -p ${DESTDIR}/${HELIB_DIR}
+	mkdir -p ${DESTDIR}/usr/lib
 	mkdir -p ${DESTDIR}/usr/bin
-	mkdir -p ${DESTDIR}/include/SHELib
-	install -c -m 0644 ${LIB} ${DESTDIR}/${HELIB_DIR}
+	mkdir -p ${DESTDIR}/usr/include/SHELib
+	install -c -m 0644 ${LIB} ${DESTDIR}/usr/lib
 	install -c -m 0755 ${PROG} ${DESTDIR}/usr/bin
-	install -c -m 0644 ${INCLUDE} ${DESTDIR}/include/SHELib
+	install -c -m 0644 ${INCLUDE} ${DESTDIR}/usr/include/SHELib
 
 libSHELib.a: ${OBJS}
 	ar -r $@ $?
