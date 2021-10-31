@@ -2,15 +2,19 @@
 # Simple Makefile: Todo move to some form of automake (cmake, etc.)
 #
 ifdef HELIB_DIR
-ISYSTEM="-isystem ${HELIB_DIR}/include"
+USE_EXTERNAL_HELIB=1
 else
 HELIB_DIR=/usr
 endif
 HELIB_INCLUDE=${HELIB_DIR}/include
 HELIB_LIB=${HELIB_DIR}/lib64
 
-LDFLAGS=-g -Wl,-rpath,${HELIB_LIB} ${HELIB_LIB}/libhelib.a ${HELIB_LIB}/libntl.so ${HELIB_LIB}/libgmp.so -lpthread
-#CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS -isystem ${HELIB_INCLUDE} -std=c++17
+ifdef USE_EXTERNAL_HELIB
+ISYSTEM=-isystem ${HELIB_DIR}/include
+RPATH=g -Wl,-rpath,${HELIB_LIB}
+endif
+
+LDFLAGS=${RPATH} ${HELIB_LIB}/libhelib.a ${HELIB_LIB}/libntl.so ${HELIB_LIB}/libgmp.so -lpthread
 CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS ${ISYSTEM} -std=c++17
 #LDFLAGS=-g -L ${HELIB_LIB} -lhelib -lntl -lgmp
 
@@ -27,10 +31,10 @@ clean:
 	rm -rf ${LIB} ${OBJS} ${PROG}
 
 install: ${LIB} ${PROG}
-	mkdir -p ${DESTDIR}/usr/lib
+	mkdir -p ${DESTDIR}/${HELIB_LIB}
 	mkdir -p ${DESTDIR}/usr/bin
 	mkdir -p ${DESTDIR}/usr/include/SHELib
-	install -c -m 0644 ${LIB} ${DESTDIR}/usr/lib
+	install -c -m 0644 ${LIB} ${DESTDIR}/${HELIB_LIB}
 	install -c -m 0755 ${PROG} ${DESTDIR}/usr/bin
 	install -c -m 0644 ${INCLUDE} ${DESTDIR}/usr/include/SHELib
 

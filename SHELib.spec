@@ -44,7 +44,7 @@ make install
 %{_bindir}/SHETest
 %{_bindir}/SHEPerf
 %{_bindir}/SHEEval
-%{_includedir}/SHElib
+%{_includedir}/SHELib
 
 %check
 
