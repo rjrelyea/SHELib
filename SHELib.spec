@@ -34,12 +34,15 @@ calculations you do.
 make
 
 %install
+export DESTDIR=$RPM_BUILD_ROOT
 make install
 
 %files
-%{_libdir}
-%{_includedir}
-%{_datadir}
+%{_libdir}/libSHELib.a
+%{_bindir}/SHETest
+%{_bindir}/SHEPerf
+%{_bindir}/SHEEval
+%{_includedir}/SHElib
 
 %check
 

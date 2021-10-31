@@ -19,6 +19,7 @@ CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS ${ISYSTEM} -std=c++17
 OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o SHEFp.o SHEMath.o
 LIB=libSHELib.a
 PROG=SHETest SHEPerf SHEEval
+INCLUDE=SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h SHEConfig.h
 
 all: ${LIB} ${PROG}
 
@@ -26,10 +27,12 @@ clean:
 	rm -rf ${LIB} ${OBJS} ${PROG}
 
 install: ${LIB} ${PROG}
-	mkdir -p ${DEST}/${HELIB_DIR}
-	mkdir -p ${DEST}/usr/bin
+	mkdir -p ${DESTDIR}/${HELIB_DIR}
+	mkdir -p ${DESTDIR}/usr/bin
+	mkdir -p ${DESTDIR}/include/SHELib
 	install -c -m 0644 ${LIB} ${DESTDIR}/${HELIB_DIR}
 	install -c -m 0755 ${PROG} ${DESTDIR}/usr/bin
+	install -c -m 0644 ${INCLUDE} ${DESTDIR}/include/SHELib
 
 libSHELib.a: ${OBJS}
 	ar -r $@ $?
