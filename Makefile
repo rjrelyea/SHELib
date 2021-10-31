@@ -1,14 +1,17 @@
 #
 # Simple Makefile: Todo move to some form of automake (cmake, etc.)
 #
-ifndef HELIB_DIR
+ifdef HELIB_DIR
+ISYSTEM="-isystem ${HELIB_DIR}/include"
+else
 HELIB_DIR=/usr
 endif
 HELIB_INCLUDE=${HELIB_DIR}/include
 HELIB_LIB=${HELIB_DIR}/lib64
 
 LDFLAGS=-g -Wl,-rpath,${HELIB_LIB} ${HELIB_LIB}/libhelib.a ${HELIB_LIB}/libntl.so ${HELIB_LIB}/libgmp.so -lpthread
-CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS -isystem ${HELIB_INCLUDE} -std=c++17
+#CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS -isystem ${HELIB_INCLUDE} -std=c++17
+CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS ${ISYSTEM} -std=c++17
 #LDFLAGS=-g -L ${HELIB_LIB} -lhelib -lntl -lgmp
 
 
