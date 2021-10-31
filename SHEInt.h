@@ -16,6 +16,14 @@ typedef struct  {
   uint64_t total;
 } SHERecryptCounters;
 
+inline std::ostream &operator<<(std::ostream &str,
+                                const SHERecryptCounters &ctr)
+{
+  str << "<double=" << ctr.doubleRecrypt << ",single=" << ctr.recrypt
+      << ",bit=" << ctr.bitRecrypt << ",total=" << ctr.total << ">";
+  return str;
+}
+
 //
 // this class uses the helib binaryArthm interface to implement various
 // homomorphic encrypted integer types. These classes create operators
@@ -49,7 +57,6 @@ typedef struct  {
 //  (which isn most cases is unavailable).
 //
 //
-#include "SHEConfig.h"
 class SHEInt;
 typedef std::unordered_map<const SHEInt *,const char *>SHEIntLabelHash;
 

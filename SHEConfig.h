@@ -52,6 +52,12 @@
 // skip all division tests
 //#define SHE_SKIP_DIV 1
 
+//skip the trig tests
+#define SHE_SKIP_TRIG 1
+
+//skip the float tests
+#define SHE_SKIP_FLOAT 1
+
 // just do operator+ performance tests
 //#define SHE_PERF_QUICK  1
 

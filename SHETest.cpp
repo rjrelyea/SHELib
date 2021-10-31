@@ -27,13 +27,16 @@ uint64_t ftohex(double a) { uint64_t *ap = (uint64_t*)&a; return *ap; }
 #define RUN_TEST_ALIAS(target, expected, test, ptest) \
   std::cout << " calculating "#ptest \
              << std:: endl; \
+  SHEInt::resetReccryptCounters(); \
   timer.start(); \
   test ; \
   timer.stop(); \
   std::cout << " "#target" time = " \
-            << (PrintTime) timer.elapsedMilliseconds() << std::endl; \
+            << (PrintTime) timer.elapsedMilliseconds() \
+            << " bootstraps = " << SHEInt::getRecryptCounters() << std::endl; \
   std::cout << " "#target" " << expected << "=?" << target.decrypt(privkey) \
             << std::endl;
+
 #define RUN_TEST(target, expected, test) \
         RUN_TEST_ALIAS(target, expected, test, test)
 
@@ -241,6 +244,7 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   ur[18] <<= ui;
   ur[19] = (uint16_t) fb;
 
+#ifndef SHE_SKIP_FLOAT
   // floating point operations
   fr[z] = fb;
   fr[1] = fa * fb;
@@ -257,11 +261,20 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   fr[7] = fa*fb - fc*fd;
   fr[8] = fr[i];
   fr[9] = (float) b;
+#ifndef SHE_SKIP_TRIG
   fr[10] = sin(fb);
   fr[11] = cos(fb);
   fr[12] = exp(fb);
   fr[13] = tan(fb);
   fr[14] = log(fa);
+#else
+  fr[10] = round(fb);
+  fr[11] = ceil(fb);
+  fr[12] = floor(fb);
+  fr[13] = remainder(fb,fa);
+  fr[14] = trunc(fa);
+#endif
+#endif
 
   //Time the encrypted operations
   std::cout << "-------------- encrypted math tests"  << std::endl;
@@ -300,7 +313,8 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST(er[17], r[17], er[17] = ea << ei)
   er[18] = ed;
   RUN_TEST(er[18], r[18], er[18] <<= ei)
-  RUN_TEST(er[19], r[19], er[19] = (SHEInt16) efb.toSHEInt())
+  RUN_TEST_ALIAS(er[19], r[19], er[19] = (SHEInt16) efb.toSHEInt(),
+                 eur[19] = (SHEUInt16) efb)
 
   std::cout << "..unsign ints"  << std::endl;
   RUN_TEST_ALIAS(eur[euz], ur[z], eur.assign(euz,eub), eur[euz] = eub)
@@ -337,8 +351,10 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST(eur[17], ur[17], eur[17] = eua << eui)
   eur[18] = eud;
   RUN_TEST(eur[18], ur[18], eur[18] <<= eui)
-  RUN_TEST(eur[19], ur[19], eur[19] = (SHEUInt16) efb.toSHEInt())
+  RUN_TEST_ALIAS(eur[19], ur[19], eur[19] = (SHEUInt16) efb.toSHEInt(),
+                 eur[19] = (SHEUInt16) efb)
 
+#ifndef SHE_SKIP_FLOAT
   std::cout << "..floats "  << std::endl;
   RUN_TEST_ALIAS(efr[euz], fr[z], efr.assign(ez,efb), efr[ez] = efb)
   RUN_TEST(efr[1], fr[1], efr[1] = efa * efb)
@@ -361,13 +377,20 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
 #else
   RUN_TEST(efr[9], fr[9], efr[9] = (SHEFloat)eb)
 #endif
+#ifndef SHE_SKIP_TRIG
   RUN_TEST(efr[10], fr[10], efr[10] = sin(efb))
   RUN_TEST(efr[11], fr[11], efr[11] = cos(efb))
   RUN_TEST(efr[12], fr[12], efr[12] = exp(efb))
-  //RUN_TEST(efr[12], fr[12], efr[12] = efr[10])
   RUN_TEST(efr[13], fr[13], efr[13] = tan(efb))
   RUN_TEST(efr[14], fr[14], efr[14] = log(efa))
-  //RUN_TEST(efr[14], fr[14], efr[14] = efb)
+#else
+  RUN_TEST(efr[10], fr[10], fr[10] = round(fb))
+  RUN_TEST(efr[11], fr[11], fr[11] = ceil(fb))
+  RUN_TEST(efr[12], fr[12], fr[12] = floor(fb))
+  RUN_TEST(efr[13], fr[13], fr[13] = remainder(fb,fa))
+  RUN_TEST(efr[14], fr[14], fr[14] = trunc(fa))
+#endif
+#endif
 
   int16_t dr[NUM_TESTS];
   uint16_t dur[NUM_TESTS];
@@ -385,11 +408,13 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
               << std::endl;
     dur[i] = eur[i].decrypt(privkey);
   }
+#ifndef SHE_SKIP_FLOAT
   for (int i = 0; i < efr.size(); i++) {
     std::cout << "efr[" << i << "].bitCapacity: " << efr[i].bitCapacity()
               << std::endl;
     dfr[i] = efr[i].decrypt(privkey);
   }
+#endif
   timer.stop();
   std::cout << " decrypt time = "
             << (PrintTime) timer.elapsedMilliseconds() << std::endl;
@@ -415,6 +440,7 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
     }
     tests++; std::cout << std::endl;
   }
+#ifndef SHE_SKIP_FLOAT
   for (int i = 0; i < FLOAT_TESTS; i++) {
     std::cout << "fr[" << i << "]=" << fr[i] << " dfr[" << i << "]="
               << dfr[i] << " ";
@@ -425,6 +451,7 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
     }
     tests++; std::cout << std::endl;
   }
+#endif
 }
 
 int main(int argc, char **argv)
@@ -453,7 +480,6 @@ int main(int argc, char **argv)
   SHEFp::setLog(std::cout);
 #endif
   SHEMathSetLog(std::cout);
-
 
   SHEGenerate_BinaryKey(privkey, pubkey, securityLevel, capacity);
 #ifdef DEBUG
