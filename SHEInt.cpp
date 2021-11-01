@@ -642,6 +642,8 @@ void SHEInt::rightShift(uint64_t shift)
 // (O(bitSize^2) single bit multiplies and a xor) and capacity.
 SHEInt &SHEInt::leftShift(const SHEInt &shift, SHEInt &result) const
 {
+#ifdef USE_BITS
+  // walk down each bit and select it from the exiting bits
   result = *this;
   helib::Ctxt zero(pubKey->getPublicKey());
   zero.clear();
@@ -650,10 +652,21 @@ SHEInt &SHEInt::leftShift(const SHEInt &shift, SHEInt &result) const
     result.encryptedData[i] = selectArrayBit(shift, i, 1, zero);
   }
   return result;
+#else
+  // walk down the possible shifts and return the one that matches
+  result = SHEInt(*this, (uint64_t)0);
+
+  for (int i=0; i < bitSize; i++) {
+    result = (i==shift).select(*this << i, result);
+  }
+  return result;
+#endif
 }
 
 SHEInt &SHEInt::rightShift(const SHEInt &shift, SHEInt &result) const
 {
+#ifdef USE_BITS
+  // walk down each bit and select it from the exiting bits
   result = *this;
   helib::Ctxt pad = encryptedData[bitSize-1];
   if (isUnsigned) {
@@ -663,6 +676,15 @@ SHEInt &SHEInt::rightShift(const SHEInt &shift, SHEInt &result) const
     result.encryptedData[i] = selectArrayBit(shift, i, 0, pad);
   }
   return result;
+#else
+  // walk down the possible shifts and return the one that matches
+  result = SHEInt(*this, (uint64_t)0);
+
+  for (int i=0; i < bitSize; i++) {
+    result = (i==shift).select(*this >> i, result);
+  }
+  return result;
+#endif
 }
 
 SHEInt SHEInt::abs(void) const

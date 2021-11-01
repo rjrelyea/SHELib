@@ -10,7 +10,7 @@
 #include "SHEMath.h"
 
 #define NUM_TESTS 20
-#define FLOAT_TESTS 15
+#define FLOAT_TESTS 16
 
 uint32_t ftohex(float a) { uint32_t *ap = (uint32_t*)&a; return *ap; }
 uint64_t ftohex(double a) { uint64_t *ap = (uint64_t*)&a; return *ap; }
@@ -262,17 +262,18 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   fr[8] = fr[i];
   fr[9] = (float) b;
 #ifndef SHE_SKIP_TRIG
-  fr[10] = sin(fb);
-  fr[11] = cos(fb);
-  fr[12] = exp(fb);
-  fr[13] = tan(fb);
-  fr[14] = log(fa);
+  fr[10] = sinf(fb);
+  fr[11] = cosf(fb);
+  fr[12] = expf(fb);
+  fr[13] = tanf(fb);
+  fr[14] = logf(fa);
+  fr[15] = remainderf(fa,fb);
 #else
-  fr[10] = round(fb);
-  fr[11] = ceil(fb);
-  fr[12] = floor(fb);
-  fr[13] = remainder(fb,fa);
-  fr[14] = trunc(fa);
+  fr[10] = roundf(fb);
+  fr[11] = ceilf(fb);
+  fr[12] = floorf(fb);
+  fr[13] = truncf(fa);
+  fr[14] = modff(fb,&fr[15]);
 #endif
 #endif
 
@@ -383,12 +384,13 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST(efr[12], fr[12], efr[12] = exp(efb))
   RUN_TEST(efr[13], fr[13], efr[13] = tan(efb))
   RUN_TEST(efr[14], fr[14], efr[14] = log(efa))
+  RUN_TEST(efr[15], fr[15], efr[15] = remainder(efa,efb))
 #else
-  RUN_TEST(efr[10], fr[10], fr[10] = round(fb))
-  RUN_TEST(efr[11], fr[11], fr[11] = ceil(fb))
-  RUN_TEST(efr[12], fr[12], fr[12] = floor(fb))
-  RUN_TEST(efr[13], fr[13], fr[13] = remainder(fb,fa))
-  RUN_TEST(efr[14], fr[14], fr[14] = trunc(fa))
+  RUN_TEST(efr[10], fr[10], efr[10] = round(efb))
+  RUN_TEST(efr[11], fr[11], efr[11] = ceil(efb))
+  RUN_TEST(efr[12], fr[12], efr[12] = floor(efb))
+  RUN_TEST(efr[13], fr[13], efr[13] = trunc(efa))
+  RUN_TEST(efr[14], fr[14], efr[14] = modf(efb,efr[15]))
 #endif
 #endif
 

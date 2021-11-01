@@ -157,6 +157,7 @@ public:
   // return fraction or integer parts only
   SHEFp trunc(void) const;
   SHEFp fract(void) const;
+  SHEBool hasFract(void) const;
 
   // Operatator ? : can't be overridden,
   // so a?b:c becomes a.select(b,c)

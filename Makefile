@@ -11,10 +11,10 @@ HELIB_LIB=${HELIB_DIR}/lib64
 
 ifdef USE_EXTERNAL_HELIB
 ISYSTEM=-isystem ${HELIB_DIR}/include
-RPATH=g -Wl,-rpath,${HELIB_LIB}
+RPATH=-Wl,-rpath,${HELIB_LIB}
 endif
 
-LDFLAGS=${RPATH} ${HELIB_LIB}/libhelib.a ${HELIB_LIB}/libntl.so ${HELIB_LIB}/libgmp.so -lpthread
+LDFLAGS=-g ${RPATH} ${HELIB_LIB}/libhelib.a ${HELIB_LIB}/libntl.so ${HELIB_LIB}/libgmp.so -lpthread
 CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS ${ISYSTEM} -std=c++17
 #LDFLAGS=-g -L ${HELIB_LIB} -lhelib -lntl -lgmp
 

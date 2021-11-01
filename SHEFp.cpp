@@ -201,12 +201,15 @@ SHEInt SHEFp::toSHEInt(int bitSize) const
 SHEFp SHEFp::trunc(void) const
 {
   SHEFp result(*this);
-  SHEInt firstFract = exp - (mkBiasExp(exp.getSize()) + mantissa.getSize());
+  SHEInt firstFract = (mantissa.getSize() + mkBiasExp(exp.getSize())) - exp;
 
   for (int i=0; i < mantissa.getSize(); i++) {
-    SHEBool clear(firstFract >= (uint64_t)i);
+    SHEBool clear(firstFract > (uint64_t)i);
     result.mantissa.setBit(i, clear.select(0, result.mantissa.getBit(i)));
   }
+  // we either cleared all the bits, or we left the high bits in place, no need
+  // to normalize, just update the exponent if everything cleared.
+  result.exp = select(result.mantissa.isZero(), 0, result.exp);
   return result;
 }
 
@@ -214,13 +217,26 @@ SHEFp SHEFp::trunc(void) const
 SHEFp SHEFp::fract(void) const
 {
   SHEFp result(*this);
-  SHEInt firstFract = exp - (mkBiasExp(exp.getSize()) + mantissa.getSize());
+  SHEInt firstFract = (mantissa.getSize() + mkBiasExp(exp.getSize())) - exp;
 
   for (int i=0; i < mantissa.getSize(); i++) {
-    SHEBool clear(firstFract < (uint64_t)i);
+    SHEBool clear(firstFract <= (uint64_t)i);
     result.mantissa.setBit(i, clear.select(0, result.mantissa.getBit(i)));
   }
+  result.normalize();
   return result;
+}
+
+SHEBool SHEFp::hasFract(void) const
+{
+  SHEInt resultMantissa(this->mantissa);
+  SHEInt firstFract = (mantissa.getSize() + mkBiasExp(exp.getSize())) - exp;
+
+  for (int i=0; i < mantissa.getSize(); i++) {
+    SHEBool clear(firstFract <= (uint64_t)i);
+    resultMantissa.setBit(i, clear.select(0, resultMantissa.getBit(i)));
+  }
+  return resultMantissa.isNotZero();
 }
 
 SHEFp::SHEFp(const SHEPublicKey &pubKey, const unsigned char *encryptedInt,
@@ -250,6 +266,7 @@ void SHEFp::reset(int expSize, int mantissaSize)
   // and then truncate would just work (except overflow and under
   // flow).
   int oldExpSize = exp.getSize();
+  int oldMantissaSize = mantissa.getSize();
   SHEBool saveSpecial(SHEBool(exp,false));
 
   if (expSize != oldExpSize) {
@@ -266,16 +283,16 @@ void SHEFp::reset(int expSize, int mantissaSize)
   if (expSize != oldExpSize) {
     exp = saveSpecial.select(mkSpecialExp(expSize), exp);
   }
-  if (mantissaSize == mantissa.getSize()) {
+  if (mantissaSize == oldMantissaSize) {
     return;  // nothing more to do.
   }
-  if (mantissaSize > mantissa.getSize()) {
-    mantissa <<= (mantissaSize - mantissa.getSize());
+  if (mantissaSize > oldMantissaSize) {
     mantissa.reset(mantissaSize, true);
+    mantissa <<= (mantissaSize - oldMantissaSize);
     return;
   }
-  // matissaSize < mantissa.getSize()
-  mantissa >>= (mantissa.getSize() - mantissaSize);
+  // matissaSize < oldMantissaSize
+  mantissa >>= (oldMantissaSize - mantissaSize);
   mantissa.reset(mantissaSize, true);
 }
 

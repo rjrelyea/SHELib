@@ -206,19 +206,20 @@ SHEFp sin(const SHEFp &a)
 }
 
 
-// tan and tanh need these magic constants hoefully 18 of them is enough
-shemaxfloat_t zigzag[] =
-{1.0, 2.0, 16.0, 272.0, 7936.0, 353792.0, 22368256.0, 1903757312.0,
- 209865342976.0, 29088885112832.0, 4951498053124096.0, 1015423886506852352.0,
- 246921480190207983616.0, 70251601603943959887872.0,
- 23119184187809597841473536.0 };
+// tan and tanh need these magic constants hopefully 18 of them is enough
+shemaxfloat_t taylor_tan[] =
+{   1.0,  1.0,  2.0,  17.0, 62.0,  1382.0, 21844.0, 929569.0,
+    6404582.0, 443861162.0, 18888466084.0,    113927491862.0,
+          58870668456604.0,               8374643517010684.0,
+      689005380505609448.0,          129848163681107301953.0,
+  1736640792209901647222.0,       418781231495293038913922.0};
 
 SHEFp tanb(const SHEFp &a)
 {
   SHEFp theta(a);
   SHEFp result(theta);
   SHEFp x(theta);
-  shemaxfloat_t invFactorial = 1.0;
+  shemaxfloat_t invFactorial2 = 1.0;
   shemaxfloat_t minfloat = a.getMin();
   result = theta;
   theta *= theta;
@@ -226,28 +227,29 @@ SHEFp tanb(const SHEFp &a)
     (*sheMathLog) << "tan(" << (SHEFpSummary) a << ")=" << std::endl
                   << " step 1 : x"
                   << "=" << (SHEFpSummary) x << " "
-                  << invFactorial
+                  << invFactorial2
                   << "*" << 1.0 << "*x = 1.0"
                   << " result=" <<(SHEFpSummary)result << std::endl;
   for (int i=3; i < SHEMATH_TRIG_LOOP_COUNT; i+=2) {
     // do the division unencrypted and them
     // multiply
-    invFactorial /= (double)(i-1)*(i);
-    if (invFactorial == 0.0 || invFactorial < minfloat) {
+    invFactorial2 /= (double)(i);
+    if (invFactorial2 == 0.0 || invFactorial2 < minfloat) {
       if (sheMathLog)
-        (*sheMathLog) << " step " << i << " : invFactorial=" << invFactorial
+        (*sheMathLog) << " step " << i << " : invFactorial2=" << invFactorial2
                       << " < " << minfloat << std::endl;
       break;
     }
-    helib::assertTrue(i/2 < SHE_ARRAY_SIZE(zigzag), "zigzag table overflow");
+    helib::assertTrue(i/2 < SHE_ARRAY_SIZE(taylor_tan),
+                      "tangent taylor series table overflow");
     x *= theta;
-    SHEFp term = x*(invFactorial*zigzag[i/2]);
+    SHEFp term = x*(invFactorial2*taylor_tan[i/2]);
     result += term;
     if (sheMathLog)
       (*sheMathLog) << " step " << i << " : x^" << i
                     << "=" << (SHEFpSummary) x << " "
-                    << invFactorial
-                    << "*" << zigzag[i/2]
+                    << invFactorial2
+                    << "*" << taylor_tan[i/2]
                     << "*x^" << i << "=" << (SHEFpSummary) term
                     << " result=" <<(SHEFpSummary)result << std::endl;
   }
@@ -603,16 +605,24 @@ SHEFp modf(const SHEFp &a, SHEFp &b)
 SHEFp trunc(const SHEFp &a) { return a.trunc(); }
 SHEFp ceil(const SHEFp &a)
 {
+  std::cout << "ceil(" << (SHEFpSummary) a << ")";
   SHEFp result(a.trunc());
-  SHEFp inc = select(a.fract().isZero(),result,result+1.0);
-  return select(a.getSign(), inc, result);
+  std::cout << " a.trunc()=" <<(SHEFpSummary) result;
+  std::cout << " a.hasFract()=" <<(SHEIntSummary) a.hasFract();
+  std::cout << " a.getSign()=" <<(SHEIntSummary) a.getSign();
+  std::cout << std::endl;
+  return select(!a.getSign() && a.hasFract(), result+1.0, result);
 }
 
 SHEFp floor(const SHEFp &a)
 {
+  std::cout << "floor(" << (SHEFpSummary) a << ")";
   SHEFp result(a.trunc());
-  SHEFp dec = select(a.fract().isZero(),result,result-1.0);
-  return select(a.getSign(), result, dec);
+  std::cout << " a.trunc()=" <<(SHEFpSummary) result;
+  std::cout << " a.hasFract()=" <<(SHEIntSummary) a.hasFract();
+  std::cout << " a.getSign()=" <<(SHEIntSummary) a.getSign();
+  std::cout << std::endl;
+  return select(a.getSign() && a.hasFract(), result-1.0, result);
 }
 
 SHEFp rint(const SHEFp &a)
