@@ -271,7 +271,11 @@ public:
   }
   void setBitHigh(int bit, const SHEInt &val) {
     if ((bit > (bitSize-1)) || (bit < 0)) { return; }
-    if (val.isExplicitZero) { encryptedData[bitSize-1-bit].clear(); return; }
+    if (val.isExplicitZero) {
+      if (isExplicitZero) return;
+      encryptedData[bitSize-1-bit].clear();
+      return;
+    }
     if (isExplicitZero) { expandZero(); }
     encryptedData[bitSize-1-bit] = val.encryptedData[0];
     return;
@@ -287,7 +291,11 @@ public:
   }
   void setBit(int bit, const SHEInt &val) {
     if ((bit > (bitSize-1)) || (bit < 0)) { return; }
-    if (val.isExplicitZero) { encryptedData[bit].clear(); return; }
+    if (val.isExplicitZero) {
+      if (isExplicitZero) return;
+      encryptedData[bit].clear();
+      return;
+    }
     if (isExplicitZero) { expandZero(); }
     encryptedData[bit] = val.encryptedData[0];
     return;
