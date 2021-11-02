@@ -1191,14 +1191,14 @@ SHEBool SHEFp::operator>(const SHEFp &a) const
 {
   SHEBool notNan = !(isNan() || a.isNan());
   SHEBool bothZero = (isZero() && a.isZero());
-  return notNan && bothZero && rawGT(a);
+  return notNan && !bothZero && rawGT(a);
 }
 
 SHEBool SHEFp::operator<(const SHEFp &a) const
 {
   SHEBool notNan = !(isNan() || a.isNan());
   SHEBool bothZero = (isZero() && a.isZero());
-  return notNan && bothZero && a.rawGT(*this);
+  return notNan && !bothZero && a.rawGT(*this);
 }
 
 SHEBool SHEFp::operator>=(const SHEFp &a) const
