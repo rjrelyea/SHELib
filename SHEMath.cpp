@@ -59,20 +59,16 @@ static SHEFp trigReduce(const SHEFp &a, SHEInt &q)
                   << ", a.abs()=" << (SHEFpSummary) aabs
                   << std::endl;
 
-  aabs /= M_PI_2;
-  std::cout << "  +aabs div pi/2=" << (SHEFpSummary) aabs << std::endl;
+  SHEFp n=aabs;
+  n /= M_PI_2;
+  std::cout << "  +aabs div pi/2=" << (SHEFpSummary) n << std::endl;
   // we should pass a bitSize to toSHEInt based on our SHEFp size?
-  SHEInt n = aabs.toSHEInt();
-  std::cout << "  +n=" << (SHEIntSummary) n;
-  q=n;
+  q=n.toSHEInt();
   q.reset(2,true);
   std::cout << " q=" << (SHEIntSummary) q << std::endl;
-  SHEFp nfp(aabs,n); // a more controlled cast.
-  nfp *= M_PI_2;
-  aabs = a.abs() - nfp;
+  aabs = n.fract() * M_PI_2;
   std::cout << "  +aabs reduced=" << (SHEFpSummary) aabs
             << "--a.abs()=" << (SHEFpSummary) a.abs()
-            << "- ((SHEFp)n)*M_PI_2) = " << (SHEFpSummary) nfp
             << std::endl;
   q = sign.select(3-q,q);
   if (sheMathLog)
@@ -80,6 +76,7 @@ static SHEFp trigReduce(const SHEFp &a, SHEInt &q)
                  << (SHEIntSummary) q << std::endl;
   return aabs;
 }
+
 SHEFp cosb(const SHEFp &a)
 {
   SHEFp theta(a);
@@ -127,6 +124,45 @@ SHEFp cosb(const SHEFp &a)
   return result;
 }
 
+SHEFp coshb(const SHEFp &a)
+{
+  SHEFp theta(a);
+  SHEFp result(theta,1.0);
+  SHEFp x(theta,1.0);
+  // use inverse factorial because it will give a definite
+  // ending for the loop as it approaches zero.
+  shemaxfloat_t invFactorial = 1.0;
+  shemaxfloat_t minfloat = a.getMin();
+  theta *= theta;
+  if (sheMathLog) {
+    (*sheMathLog) << "cos(" << (SHEFpSummary)a << ") = " << std::endl
+                  << " step 0 : x^0=" << (SHEFpSummary) x << " +"
+                  << invFactorial << "*x^0=" << (SHEFpSummary) x
+                  << " result=" <<(SHEFpSummary)result << std::endl;
+  }
+  for (int i=2; i < SHEMATH_TRIG_LOOP_COUNT; i+=2) {
+    // do the division unencrypted and them
+    // multiply
+    invFactorial /= (double)((i-1)*(i));
+    // once invFactorial goes to zero, we can't proceed further
+    if (invFactorial == 0.0 || invFactorial < minfloat) {
+      if (sheMathLog)
+        (*sheMathLog) << " step " << i << " : invFactorial=" << invFactorial
+                      << " < " << minfloat << std::endl;
+      break;
+    }
+    x *= theta;
+    SHEFp term = x*invFactorial;
+    result += term;
+    if (sheMathLog)
+      (*sheMathLog) << " step " << i << " : x^" << i
+                    << "=" << (SHEFpSummary) x << " +"
+                    << invFactorial
+                    << "*x^" << i << "=" << (SHEFpSummary)term
+                    << " result=" <<(SHEFpSummary)result << std::endl;
+  }
+  return result;
+}
 
 SHEFp cos(const SHEFp &a)
 {
@@ -138,6 +174,27 @@ SHEFp cos(const SHEFp &a)
   SHEFp result = cosb(theta);
   // switch(q)
   std::cout << "cos qin=" << (SHEIntSummary) q
+            << " q.bit[0]=" << (SHEIntSummary) q.getBitHigh(0)
+            << " q.bit[1]=" << (SHEIntSummary) q.getBitHigh(1) ;
+  q = q.getBitHigh(0) ^ q.getBitHigh(1);
+  std::cout << " qout=" << (SHEIntSummary) q << std::endl;
+  result = SHEFpBool(q).select(-result,result);
+  return result;
+}
+
+SHEFp acos(const SHEFp &a)
+  { return M_PI_2-asin(a); }
+
+SHEFp cosh(const SHEFp &a)
+{
+  SHEInt q(a.getSign(), (uint64_t)0);
+  SHEFp theta = trigReduce(a,q);
+  SHEFpBool rev(q);
+  rev.reset(1,true);
+  theta = rev.select(M_PI_2-theta,theta);
+  SHEFp result = coshb(theta);
+  // switch(q)
+  std::cout << "cosh qin=" << (SHEIntSummary) q
             << " q.bit[0]=" << (SHEIntSummary) q.getBitHigh(0)
             << " q.bit[1]=" << (SHEIntSummary) q.getBitHigh(1) ;
   q = q.getBitHigh(0) ^ q.getBitHigh(1);
@@ -191,6 +248,104 @@ SHEFp sinb(const SHEFp &a)
   return result;
 }
 
+SHEFp sinhb(const SHEFp &a)
+{
+  SHEFp theta(a);
+  SHEFp result(theta,1.0);
+  SHEFp x(theta);
+  shemaxfloat_t invFactorial = 1.0;
+  shemaxfloat_t minfloat = a.getMin();
+  result = x;
+  if (sheMathLog)
+    (*sheMathLog) << "sinh(" << (SHEFpSummary)a << ") = " << std::endl
+                  << " step 1 : x=" << (SHEFpSummary) x << " +"
+                  << invFactorial << "*x=" << (SHEFpSummary) x
+                  << " result=" <<(SHEFpSummary)result << std::endl;
+  theta *= theta;
+  for (int i=3; i < SHEMATH_TRIG_LOOP_COUNT; i+=2) {
+    // do the division unencrypted and them
+    // multiply
+    invFactorial /= (double)((i-1)*(i));
+    // once invFactorial goes to zero, we can't proceed further
+    if (invFactorial == 0.0 || invFactorial < minfloat) {
+      if (sheMathLog)
+        (*sheMathLog) << " step " << i << " : invFactorial=" << invFactorial
+                      << " < " << minfloat << std::endl;
+      break;
+    }
+    x *= theta;
+    SHEFp term = invFactorial*x;
+    result += term;
+    if (sheMathLog)
+      (*sheMathLog) << " step " << i << " : x^" << i
+                    << "=" << (SHEFpSummary) x << " +"
+                    << invFactorial
+                    << "*x^" << i << "=" << (SHEFpSummary)term
+                    << " result=" <<(SHEFpSummary)result << std::endl;
+  }
+  return result;
+}
+
+SHEFp asinhb(const SHEFp &a) {
+  SHEFp theta(a);
+  SHEFp result(theta,1.0);
+  SHEFp x(theta);
+  shemaxfloat_t coefficient = 1.0;
+  shemaxfloat_t term = .9;  // when to terminate the loop
+  shemaxfloat_t minfloat = a.getMin();
+  result = x;
+  if (sheMathLog)
+    (*sheMathLog) << "asinh(" << (SHEFpSummary)a << ") = " << std::endl
+                  << " step 1 : x=" << (SHEFpSummary) x << " +"
+                  << coefficient << "*x=" << (SHEFpSummary) x
+                  << " result=" <<(SHEFpSummary)result << std::endl;
+  theta *= theta;
+  for (int i=3; i < SHEMATH_TRIG_LOOP_COUNT; i+=2) {
+    // do the division unencrypted and them
+    // multiply
+    coefficient *= (double)(i-2)/(double)(i-1);
+    double fcoefficient = coefficient/(double)i;
+    // this detects when it is no longer possible to add more
+    // results based on the floating point percision for normal
+    // valid inputs.
+    term *= (double)(i-2)/(double)(i-1);
+    term *= .81;
+    // once coefficient goes to zero, we can't proceed further
+    if (term == 0.0 || term < minfloat) {
+      if (sheMathLog)
+        (*sheMathLog) << " step " << i << " : term=" << term
+                      << " < " << minfloat << std::endl;
+      break;
+    }
+    x *= theta;
+    SHEFp term = fcoefficient*x;
+    if (sheMathLog)
+      (*sheMathLog) << " step " << i << " : x^" << i
+                    << "=" << (SHEFpSummary) x << " ";
+    if (i&2) {
+      result -= term;
+      if (sheMathLog) (*sheMathLog) << "-";
+    } else {
+      result += term;
+      if (sheMathLog) (*sheMathLog) << "+";
+    }
+    if (sheMathLog)
+      (*sheMathLog) << fcoefficient
+                    << "*x^" << i << "=" << (SHEFpSummary)term
+                    << " result=" <<(SHEFpSummary)result << std::endl;
+    result += term;
+    if (sheMathLog)
+      (*sheMathLog) << " step " << i << " : x^" << i
+                    << "=" << (SHEFpSummary) x << " +"
+                    << fcoefficient
+                    << "*x^" << i << "=" << (SHEFpSummary)term
+                    << " result=" <<(SHEFpSummary)result << std::endl;
+  }
+  // result is only valid for inputs between -1 and 1 inclusive
+  result = select(a.abs() > 1.0, NAN, result);
+  return result;
+}
+
 SHEFp sin(const SHEFp &a)
 {
   // q is the quadrant.
@@ -205,21 +360,97 @@ SHEFp sin(const SHEFp &a)
   return result;
 }
 
+SHEFp asin(const SHEFp &a) {
+  SHEFp theta(a);
+  SHEFp result(theta,1.0);
+  SHEFp x(theta);
+  shemaxfloat_t coefficient = 1.0;
+  shemaxfloat_t term = .9;  // when to terminate the loop
+  shemaxfloat_t minfloat = a.getMin();
+  result = x;
+  if (sheMathLog)
+    (*sheMathLog) << "asin(" << (SHEFpSummary)a << ") = " << std::endl
+                  << " step 1 : x=" << (SHEFpSummary) x << " +"
+                  << coefficient << "*x=" << (SHEFpSummary) x
+                  << " result=" <<(SHEFpSummary)result << std::endl;
+  theta *= theta;
+  for (int i=3; i < SHEMATH_TRIG_LOOP_COUNT; i+=2) {
+    // do the division unencrypted and them
+    // multiply
+    coefficient *= (double)(i-2)/(double)(i-1);
+    double fcoefficient = coefficient/(double)i;
+    // this detects when it is no longer possible to add more
+    // results based on the floating point percision for normal
+    // valid inputs.
+    term  *= (double)(i-2)/(double)(i-1);
+    term *= .81;
+    // once coefficient goes to zero, we can't proceed further
+    if (term == 0.0 || term < minfloat) {
+      if (sheMathLog)
+        (*sheMathLog) << " step " << i << " : term=" << term
+                      << " < " << minfloat << std::endl;
+      break;
+    }
+    x *= theta;
+    SHEFp term = fcoefficient*x;
+    result += term;
+    if (sheMathLog)
+      (*sheMathLog) << " step " << i << " : x^" << i
+                    << "=" << (SHEFpSummary) x << " +"
+                    << fcoefficient
+                    << "*x^" << i << "=" << (SHEFpSummary)term
+                    << " result=" <<(SHEFpSummary)result << std::endl;
+  }
+  // result is only valid for inputs between -1 and 1 inclusive
+  result = select(a.abs() > 1.0, NAN, result);
+  return result;
+}
 
-// tan and tanh need these magic constants hopefully 18 of them is enough
-shemaxfloat_t taylor_tan[] =
-{   1.0,  1.0,  2.0,  17.0, 62.0,  1382.0, 21844.0, 929569.0,
-    6404582.0, 443861162.0, 18888466084.0,    113927491862.0,
-          58870668456604.0,               8374643517010684.0,
-      689005380505609448.0,          129848163681107301953.0,
-  1736640792209901647222.0,       418781231495293038913922.0};
+SHEFp sinh(const SHEFp &a) {
+  // q is the quadrant.
+  SHEInt q(a.getSign(), (uint64_t)0);
+  SHEFp theta = trigReduce(a,q);
+  SHEFpBool rev(q);
+  rev.reset(1,true);
+  theta = rev.select(M_PI_2-theta,theta);
+  SHEFp result = sinhb(theta);
+  // switch(q)
+  result = SHEFpBool(q.getBitHigh(0)).select(-result, result);
+  return result;
+}
+
+
+
+// tan and tanh need these magic constants hopefully 17777777 of them is enough
+shemaxfloat_t taylor_tan[] = {
+#ifdef SHEFP_USE_DOUBLE
+  +1.00000000000000E+00, +3.33333333333333E-01,
+  +1.33333333333333E-01, +5.39682539682540E-02,
+  +2.18694885361552E-02, +8.86323552990220E-03,
+  +3.59212803657248E-03, +1.45583433917050E-03,
+  +5.90027463286219E-04, +2.39129100628593E-04,
+  +9.69153838863717E-05, +3.92783258380507E-05,
+  +1.59189050485676E-05, +6.45168929248486E-06,
+  +2.61477121671397E-06, +1.05972685053282E-06,
+  +4.29491095269173E-07
+#else
+  +1.00000000000000000000000000000E+00, +3.33333333333333333342368351437E-01,
+  +1.33333333333333333339657846006E-01, +5.39682539682539682545921004564E-02,
+  +2.18694885361552028211589967024E-02, +8.86323552990219656898713022561E-03,
+  +3.59212803657248101694694601693E-03, +1.45583433917049656577375702513E-03,
+  +5.90027463286218677914110174610E-04, +2.39129100628592788514526631884E-04,
+  +9.69153838863716870502102676988E-05, +3.92783258380506872029330339973E-05,
+  +1.59189050485676058423009938597E-05, +6.45168929248486274756231032580E-06,
+  +2.61477121671397178921995365722E-06, +1.05972685053282340400410922393E-06,
+  +4.29491095269172544223167813564E-07
+#endif
+};
 
 SHEFp tanb(const SHEFp &a)
 {
   SHEFp theta(a);
   SHEFp result(theta);
   SHEFp x(theta);
-  shemaxfloat_t invFactorial2 = 1.0;
   shemaxfloat_t minfloat = a.getMin();
   result = theta;
   theta *= theta;
@@ -227,30 +458,109 @@ SHEFp tanb(const SHEFp &a)
     (*sheMathLog) << "tan(" << (SHEFpSummary) a << ")=" << std::endl
                   << " step 1 : x"
                   << "=" << (SHEFpSummary) x << " "
-                  << invFactorial2
-                  << "*" << 1.0 << "*x = 1.0"
+                  << taylor_tan[0]
+                  << "*" << "*x = " << (SHEFpSummary) x
                   << " result=" <<(SHEFpSummary)result << std::endl;
   for (int i=3; i < SHEMATH_TRIG_LOOP_COUNT; i+=2) {
-    // do the division unencrypted and them
-    // multiply
-    invFactorial2 /= (double)(i);
-    if (invFactorial2 == 0.0 || invFactorial2 < minfloat) {
+    helib::assertTrue(i/2 < SHE_ARRAY_SIZE(taylor_tan),
+                      "tangent taylor series table overflow");
+    // grab the fully calculated taylor series coefficent
+    shemaxfloat_t taylor = taylor_tan[i/2];
+    if (taylor == 0.0 || taylor < minfloat) {
       if (sheMathLog)
-        (*sheMathLog) << " step " << i << " : invFactorial2=" << invFactorial2
+        (*sheMathLog) << " step " << i << " : taylor=" << taylor
                       << " < " << minfloat << std::endl;
       break;
     }
-    helib::assertTrue(i/2 < SHE_ARRAY_SIZE(taylor_tan),
-                      "tangent taylor series table overflow");
     x *= theta;
-    SHEFp term = x*(invFactorial2*taylor_tan[i/2]);
+    SHEFp term = x*taylor;
     result += term;
     if (sheMathLog)
       (*sheMathLog) << " step " << i << " : x^" << i
                     << "=" << (SHEFpSummary) x << " "
-                    << invFactorial2
-                    << "*" << taylor_tan[i/2]
-                    << "*x^" << i << "=" << (SHEFpSummary) term
+                    << taylor << "**x^" << i << "=" << (SHEFpSummary) term
+                    << " result=" <<(SHEFpSummary)result << std::endl;
+  }
+  return result;
+}
+
+SHEFp tanhb(const SHEFp &a)
+{
+  SHEFp theta(a);
+  SHEFp result(theta);
+  SHEFp x(theta);
+  shemaxfloat_t minfloat = a.getMin();
+  result = theta;
+  theta *= theta;
+  if (sheMathLog)
+    (*sheMathLog) << "tan(" << (SHEFpSummary) a << ")=" << std::endl
+                  << " step 1 : x"
+                  << "=" << (SHEFpSummary) x << " "
+                  << taylor_tan[0]
+                  << "*" << "*x = " << (SHEFpSummary) x
+                  << " result=" <<(SHEFpSummary)result << std::endl;
+  for (int i=3; i < SHEMATH_TRIG_LOOP_COUNT; i+=2) {
+    helib::assertTrue(i/2 < SHE_ARRAY_SIZE(taylor_tan),
+                      "tangent taylor series table overflow");
+    // grab the fully calculated taylor series coefficent
+    shemaxfloat_t taylor = taylor_tan[i/2];
+    if (taylor == 0.0 || taylor < minfloat) {
+      if (sheMathLog)
+        (*sheMathLog) << " step " << i << " : taylor=" << taylor
+                      << " < " << minfloat << std::endl;
+      break;
+    }
+    x *= theta;
+    SHEFp term = x*taylor;
+    if (sheMathLog)
+      (*sheMathLog) << " step " << i << " : x^" << i
+                    << "=" << (SHEFpSummary) x << " ";
+    if (i&2) {
+      result -= term;
+      if (sheMathLog) (*sheMathLog) << "-";
+    } else {
+      result += term;
+      if (sheMathLog) (*sheMathLog) << "+";
+    }
+    if (sheMathLog)
+      (*sheMathLog) << taylor
+                    << "*x^" << i << "=" << (SHEFpSummary)term
+                    << " result=" <<(SHEFpSummary)result << std::endl;
+  }
+  return result;
+}
+
+SHEFp atanb(const SHEFp &a)
+{
+  SHEFp theta(a);
+  SHEFp result(theta,1.0);
+  SHEFp x(theta);
+  result = x;
+  if (sheMathLog)
+    (*sheMathLog) << "atan(" << (SHEFpSummary)a << ") = " << std::endl
+                  << " step 1 : x=" << (SHEFpSummary) x << "+x="
+                  << (SHEFpSummary) x << " result=" <<(SHEFpSummary)result
+                  << std::endl;
+  theta *= theta;
+  for (int i=3; i < SHEMATH_TRIG_LOOP_COUNT; i+=2) {
+    // do the division unencrypted and them
+    // multiply
+    double coefficient = 1.0/(double)(i);
+    x *= theta;
+    SHEFp term = coefficient*x;
+    if (sheMathLog)
+      (*sheMathLog) << " step " << i << " : x^" << i
+                    << "=" << (SHEFpSummary) x << " ";
+    if (i&2) {
+      result -= term;
+      if (sheMathLog) (*sheMathLog) << "-";
+    } else {
+      result += term;
+      if (sheMathLog) (*sheMathLog) << "+";
+    }
+    if (sheMathLog)
+      (*sheMathLog) << coefficient
+                    << "*x^" << i << "=" << (SHEFpSummary)term
                     << " result=" <<(SHEFpSummary)result << std::endl;
   }
   return result;
@@ -266,6 +576,79 @@ SHEFp tan(const SHEFp &a)
   theta = rev.select(M_PI_2-theta,theta);
   SHEFp result = tanb(theta);
   std::cout << "tan rev=" << (SHEIntSummary) rev << " q=" <<(SHEIntSummary)q
+            << std::endl;
+  result = rev.select(-result, result);
+  return result;
+}
+
+SHEFp atan(const SHEFp &a)
+{
+  SHEFp x(a);
+  SHEFp result(a,0.0);
+  SHEFp pi_2(a,0.0);
+  SHEFpBool largeTan=a.abs()>1.0;
+  pi_2 = largeTan.select(M_PI_2,0.0);
+  pi_2.setSign(a.getSign());
+  // tansform -1.0/a transforms x - 1/3*x^3 + 1/5*x^5...
+  //                       to  -1/x+1/(3*x^3)-1/(5*x^5)...
+  // by doing the select here, we only need to
+  // run the power serise oncewe do the transform on the input
+  x = largeTan.select(-1.0/a, a);
+  result =  pi_2 + atanb(x);
+  return result;
+}
+
+SHEFp atan2(const SHEFp &a, const SHEFp &b)
+{
+  SHEFp result=atan(a/b);
+  SHEFp zero(a,0.0);
+  SHEFp pi(a,M_PI);
+  SHEFp pi2(a,M_PI_2);
+  SHEInt aSign=a.getSign();
+  SHEInt bSign=b.getSign();
+  zero.setSign(aSign);
+  pi.setSign(aSign);
+  SHEFpBool aZero=a.isZero();
+  SHEFpBool bZero=b.isZero();
+  SHEFpBool aLTZero=a < 0.0;
+  SHEFpBool aGTZero=a > 0.0;
+  SHEFpBool bLTZero=b < 0.0;
+  SHEFpBool bGTZero=b > 0.0;
+  SHEFpBool aInf=a.isInf();
+  SHEFpBool bInf=b.isInf();
+  // handle all of the atan2 exceptional cases
+  result = select(aZero && bLTZero, zero, result);
+  result = select(aZero && bGTZero, pi, result);
+  pi2.setSign(aLTZero);
+  result = select(bZero && !aZero, pi2, result);
+  result = select(aZero && bZero && bSign, pi, result);
+  result = select(aZero && bZero && !bSign, zero, result);
+  pi2.setSign(aSign);
+  result = select(aInf && !bInf,  pi2, result);
+  zero.setSign(aLTZero);
+  pi.setSign(aLTZero);
+  result = select(bInf && bSign && !aZero, pi, result);
+  result = select(bInf && !bSign && !aZero, zero, result);
+  pi2 = M_PI_2+M_PI_4;
+  pi2.setSign(aSign);
+  result = select(aInf && bInf && bSign,  pi2, result);
+  pi2 = M_PI_4;
+  pi2.setSign(aSign);
+  result = select(aInf && bInf && !bSign,  pi2, result);
+  result = select(a.isNan() || b.isNan(),  NAN, result);
+  return result;
+}
+
+SHEFp tanh(const SHEFp &a)
+{
+  // q is the quadrant.
+  SHEInt q(a.getSign(), (uint64_t)0);
+  SHEFp theta = trigReduce(a,q);
+  SHEFpBool rev(q);
+  rev.reset(1,true);
+  theta = rev.select(M_PI_2-theta,theta);
+  SHEFp result = tanhb(theta);
+  std::cout << "tanh rev=" << (SHEIntSummary) rev << " q=" <<(SHEIntSummary)q
             << std::endl;
   result = rev.select(-result, result);
   return result;
@@ -465,7 +848,9 @@ static SHEFp _log(const SHEFp &a)
   fract.normalize();
   if (sheMathLog)
     (*sheMathLog) << " fract=" << (SHEFpSummary) fract  << std::endl;
-  return ln + _log1p(fract*inv);
+  SHEFp result = ln + _log1p(fract*inv);
+  std::cout << " ln result=" << (SHEFpSummary)result << std::endl;
+  return result;
 }
 
 // for now just return based on log
@@ -477,15 +862,20 @@ SHEFp log(const SHEFp &a)
   SHEFpBool needInf(a.isInf());
   // the exponent gives us the large portion of the log
   // already...
+  std::cout << "log(" << (SHEFpSummary)a << ")" << std::endl;
   SHEFp result(a,a.getUnbiasedExp());
+  std::cout << " log2()=" << (SHEFpSummary)result  << std::endl;
   result *= M_LN2;
+  std::cout << " ln()=" << (SHEFpSummary)result  << std::endl;
   SHEFp a_(a);
   a_.setUnbiasedExp(0);
   // a is now between 0 and .9999999999, which is quicker
   // to calculate
   result += _log(a_);
+  std::cout << " log()=" << (SHEFpSummary)result  << std::endl;
   result = needInf.select(INFINITY, result);
   result = needNan.select(NAN, result);
+  std::cout << " post non/inf log()=" << (SHEFpSummary)result  << std::endl;
   return result;
 }
 
@@ -702,16 +1092,9 @@ SHEFp remquo(const SHEFp &a, shemaxfloat_t b, SHEInt &q)
 
 
 // these are not yet implemented
-SHEFp acos(const SHEFp &a) { return a; }
 SHEFp acosh(const SHEFp &a) { return a; }
-SHEFp cosh(const SHEFp &a) { return a; }
-SHEFp asin(const SHEFp &a) { return a; }
 SHEFp asinh(const SHEFp &a) { return a; }
-SHEFp sinh(const SHEFp &a) { return a; }
-SHEFp atan(const SHEFp &a) { return a; }
-SHEFp atan2(const SHEFp &a, const SHEFp &b) { return a; }
 SHEFp atanh(const SHEFp &a) { return a; }
-SHEFp tanh(const SHEFp &a) { return a; }
 //
 SHEFp cbrt(const SHEFp &a) { return a; }
 SHEFp erf(const SHEFp &a) { return a; }
