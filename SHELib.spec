@@ -47,6 +47,9 @@ make install
 %{_includedir}/SHELib
 
 %check
+# do a reasonable test: use float and log, but skip div and trig tests.
+# use the smallest security level
+./SHTest --no-trig --float --log --no-div 19 600
 
 %changelog
 * Fri Oct 29 2021 Bob Relyea <rrelyea@redhat.com> - 2.2.1-1
