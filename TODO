@@ -2,17 +2,39 @@
    - test Encrypted+non-encrypted cases
    - test all the operator x= cases.
 - Add missing math.h functions (see SHEMath.cpp).
+   - SHEFp acosh(const SHEFp &a) { return a; }
+   - SHEFp asinh(const SHEFp &a) { return a; }
+   - SHEFp atanh(const SHEFp &a) { return a; }
+   - SHEFp erf(const SHEFp &a) { return a; }
+   - SHEFp erfc(const SHEFp &a) { return a; }
+   - SHEFp hypot(const SHEFp &a, const SHEFp &b) { return a; }
+   - SHEFp j0(const SHEFp &a) { return a; }
+   - SHEFp j1(const SHEFp &a) { return a; }
+   - SHEFp jn(const SHEInt &n, const SHEFp &a) { return a; }
+   - SHEFp ldexp(const SHEFp &a, const SHEInt &n) { return a; }
+   - SHEFp lgamma(const SHEFp &a) { return a; }
+   - //SHEFp nan(const char *) { return a; }
+   - SHEFp nextafter(const SHEFp &a, const SHEFp &b) { return a; }
+   - //SHEFp nexttoward(const SHEFp &, const SHEFp &) { return a; }
+   - SHEFp scalbn(const SHEFp &a, const SHEInt &b) { return a; }
+   - SHEFp tgamma(const SHEFp &a) { return a; }
+   - SHEFp y0(const SHEFp &a) { return a; }
+   - SHEFp y1(const SHEFp &a) { return a; }
+   - SHEFp yn(const SHEInt &n, const SHEFp &a) { return a; }
 - Add SHEString
 - Add Unordered_map:
   - a version that stores the components unencrypted, but are retrieved
     encrypted.
-- Improve FP performance by switching from offset to native exp, and
-  tracking nan and inf status with separate bools.
-- Create detailed documentation on each function
-- Create 3, 4, 5, and 6 variable versions of needRecrypt, verifyArgs, and
-  reCrypt.
-- Add Debugging Summary to SHEVector
-- Complete the GenericContext code
+- Performance improvments
+   - Improve FP performance by switching from offset to native exp, and
+     tracking nan and inf status with separate bools.
+   - add intermediate tables to trig functions using the same method we used
+     to improve log performance
+   - create non-normalized versions of addition and multiplication for use
+     in SHEMath.h, then normalize at the end.
+   - Create 3, 4, 5, and 6 variable versions of needRecrypt, verifyArgs, and
+     reCrypt.
+   - can we speed up udiv?
 - Add Vector operations
    - use slots in SHEInt to intialize it with a vector.
    - disable packed recrypt when using vectors. (Question does the underlying
@@ -20,5 +42,8 @@
    - export SHEInt as vectors.
    - Add vector support to SHEFp (same plan as SHEInt)
    - Add vector support to SHEString
+- Create detailed documentation on each function
+- Add Debugging Summary to SHEVector
+- Complete the GenericContext code
 - Add Support for non-binary BGV contexts
 - Add Support for CVV

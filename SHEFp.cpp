@@ -531,13 +531,13 @@ void SHEFp::readFromJSON(const helib::JsonWrapper& jw)
 SHEInt SHEFp::getUnbiasedExp(void) const
 {
   SHEInt exp_(exp);
-  exp_.reset(exp.getSize(), true);
+  exp_.reset(exp.getSize(), false);
   return exp_ - mkBiasExp(exp.getSize());
 }
 
 void SHEFp::setUnbiasedExp(uint64_t e)
 {
-  SHEInt exp_(exp, e + mkBiasExp(exp.getSize()));
+  SHEInt exp_(exp, (int64_t)e + mkBiasExp(exp.getSize()));
   exp = exp_;
 }
 

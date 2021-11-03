@@ -38,13 +38,24 @@ SHEFp copysign(const SHEFp &a, shemaxfloat_t b)
 }
 
 // simple functions we could probably make inline in math.h
-SHEFp fmax(const SHEFp &a, const SHEFp &b) { return select((a>b), a, b); }
+SHEFp fmax(const SHEFp &a,  const SHEFp &b) { return select((a>b), a, b); }
 SHEFp fmax(shemaxfloat_t a, const SHEFp &b) { return select((a>b), a, b); }
-SHEFp fmax(const SHEFp &a, shemaxfloat_t &b) { return select((a>b), a, b); }
-SHEFp fmin(const SHEFp &a, const SHEFp &b) { return select((a<b), a, b); }
+SHEFp fmax(const SHEFp &a,  shemaxfloat_t b) { return select((a>b), a, b); }
+SHEFp fmin(const SHEFp &a,  const SHEFp &b) { return select((a<b), a, b); }
 SHEFp fmin(shemaxfloat_t a, const SHEFp &b) { return select((a<b), a, b); }
-SHEFp fmin(const SHEFp &a, shemaxfloat_t b) { return select((a<b), a, b); }
+SHEFp fmin(const SHEFp &a,  shemaxfloat_t b) { return select((a<b), a, b); }
 SHEFp fabs(const SHEFp &a) { return a.abs(); }
+SHEFp fdim(const SHEFp &a,  const SHEFp &b ) { return fmax(a-b,0.0); }
+SHEFp fdim(shemaxfloat_t a, const SHEFp &b ) { return fmax(a-b,0.0); }
+SHEFp fdim(const SHEFp &a,  shemaxfloat_t b) { return fmax(a-b,0.0); }
+// ideally we put off the normalize on the multiply until after the add...
+SHEFp fma(const SHEFp &a,  const SHEFp &b,  const SHEFp &c ) { return a*b + c; }
+SHEFp fma(shemaxfloat_t a, const SHEFp &b,  const SHEFp &c ) { return a*b + c; }
+SHEFp fma(const SHEFp &a,  shemaxfloat_t b, const SHEFp &c ) { return a*b + c; }
+SHEFp fma(const SHEFp &a,  const SHEFp &b,  shemaxfloat_t c) { return a*b + c; }
+SHEFp fma(const SHEFp &a,  shemaxfloat_t b, shemaxfloat_t c) { return a*b + c; }
+SHEFp fma(shemaxfloat_t a, const SHEFp &b,  shemaxfloat_t c) { return a*b + c; }
+SHEFp fma(shemaxfloat_t a,  shemaxfloat_t b, const SHEFp &c) { return a*b + c; }
 
 // Trig functions use the power series.
 // reduce to a to a mod pi/2
@@ -703,45 +714,19 @@ SHEFp exp2(const SHEFp &a)
 }
 
 // a is small and close to zero
-static SHEFp _log1p(const SHEFp &a)
+static SHEFp _log1p(const SHEFp &x)
 {
-  SHEFp x(a);
-  SHEFp result_1(x);
-  shemaxfloat_t minfloat = a.getMin();
+  SHEFp x2(x);
+  SHEFp result(x);
 
   if (sheMathLog)
-    (*sheMathLog) << "_log1p(" << (SHEFpSummary) a << ")=" << std::endl
-                  << " step 1 : x=" << (SHEFpSummary)x << " "
-                  << 1.0 << "*x=" << (SHEFpSummary)x
-                  << " result=" << (SHEFpSummary)result_1 << std::endl;
-
-  // This is only good close to 1
-  for (int i=2; i < SHEMATH_LN_LOOP_COUNT; i++) {
-    shemaxfloat_t invDenominator = 1.0/(double)i;
-    if (invDenominator == 0.0 || invDenominator < minfloat) {
-      if (sheMathLog)
-        (*sheMathLog) << " step " << i << " : invDenominator="
-                      << invDenominator << " < " << minfloat << std::endl;
-      break;
-    }
-    x *= x;
-    if (sheMathLog)
-      (*sheMathLog) << " step " << i << " : x^" << i << "="
-                     << (SHEFpSummary)x << " ";
-    SHEFp term = x*invDenominator;
-    if (i & 1) {
-      result_1 -= term;
-      if (sheMathLog) (*sheMathLog) << "-";
-    } else {
-      result_1 += term;
-      if (sheMathLog) (*sheMathLog) << "+";
-    }
-    if (sheMathLog)
-      (*sheMathLog) << invDenominator << "*x^" << i << "="
-                    << (SHEFpSummary)term << " result="
-                    << (SHEFpSummary) result_1 << std::endl;
-  }
-  return result_1;
+    (*sheMathLog) << "_log1p(" << (SHEFpSummary) x << ")=" << std::flush;
+  x2 *= x;
+  result=(-.25)*x2 + ((shemaxfloat_t)1.0/(shemaxfloat_t)3.0)*x + (-.5);
+  result *= x2;
+  result += x;
+  if (sheMathLog) (*sheMathLog) << (SHEFpSummary) result << std::endl;
+  return result;
 }
 
 // tables for ln and inv of
@@ -808,22 +793,33 @@ static SHEFp _log(const SHEFp &a)
   // ln and inverse for that bit position
   int depth = 5;
   SHEBool lbreak(mantissa,false);
-  SHEFp ln(a, INFINITY);
+  SHEFp ln(a, 0.0);
   SHEFp inv(a, 1.0);
   SHEInt mantissaDenormal(mantissa);
+  // handle the denormal case. Find the first '1'
+  // bit. If we can't find one in the first 5
+  // bits, just drop into the log1p with the rest
   for (int i=1; i < depth; i++) {
     SHEBool currentBit = mantissa.getBitHigh(i);
     SHEFpBool found= currentBit && !lbreak;
+    // ln(2^-(i+1)) = (i+1)*ln(2)
     ln = found.select(-((shemaxfloat_t)(i+1))*M_LN2, ln);
+    // 1.0/(2^-(i+1)) = 2^(i+1)
     inv = found.select(((shemaxfloat_t)(1<<i))*2.0, inv);
     // reset it if found
     mantissaDenormal.setBitHigh(i,SHEBool(found).select(0,currentBit));
     lbreak = lbreak.select(found,lbreak);
   }
+  // if the first 5 bits are zero, then ln and inv are really both infinity,
+  // and the log is simply ln(mantissaDenormal). We calculate the final ln
+  // as logp1(x) = log(x+1), so we need to subtract 1 from our mantissa
+  mantissaDenormal = select(ln==0.0,
+                            mantissaDenormal + SHEInt(mantissaDenormal,~0),
+                            mantissaDenormal);
   if (sheMathLog)
     (*sheMathLog) << " denormal ln=" << (SHEFpSummary) ln  << std::endl
                   << " denormal inv=" << (SHEFpSummary) inv  << std::endl;
-  // normal normalized case, use the top 5 bits to select
+  // normal normalized case (more common), use the top 5 bits to select
   // the ln and inf from table 2
   SHEInt index(mantissa);
   // grab high bits 1-4 (bit zero is 1)
@@ -831,23 +827,35 @@ static SHEFp _log(const SHEFp &a)
   index.reset(4,true);
   if (sheMathLog)
     (*sheMathLog) << " normal index=" << (SHEIntSummary) index  << std::endl;
+  // select the values from the table (only size 16, so managable)
+  // once this completes ln has the correct value (either table, or denormal
+  // ln value from the loop above, same with inv.
   ln = notDenormal.select(getVector(a,lnTable,index),ln);
   inv = notDenormal.select(getVector(a,lnInvTable,index),inv);
   if (sheMathLog)
     (*sheMathLog) << " ln=" << (SHEFpSummary) ln  << std::endl
                   << " inv=" << (SHEFpSummary) inv  << std::endl;
   SHEFp fract(a);
-  // now find the final fraction
+  // now find the final fraction in our normalized case.
+  // we do this by clearing out the bits use used in the index
   SHEInt mantissaClear(mantissa);
   SHEBool zbit(mantissa,false);
   for (int i=0; i < 5; i++) {
     mantissaClear.setBitHigh(i,zbit);
   }
+  // now set fract to the correct adjusted mantissa
   fract.setMantissa(SHEBool(notDenormal).select(mantissaClear,
                                                 mantissaDenormal));
-  fract.normalize();
+  // we've cleared bits, turn it back into a usable float.
+  // The multiply will handle this denormal number and normalize
+  // at the end, so skip the normalize step here.
+  //fract.normalize();
   if (sheMathLog)
     (*sheMathLog) << " fract=" << (SHEFpSummary) fract  << std::endl;
+  // we split a into high + fract = high * (1 + fract*high^-1)
+  // let inv=high^-1, and ln(high) is then looked up in our lnTable/lnInvTable
+  // ln(high + fract) = ln(high) + ln (1+fract*inv)
+  //                  = ln + log1p(fract*inv)
   SHEFp result = ln + _log1p(fract*inv);
   std::cout << " ln result=" << (SHEFpSummary)result << std::endl;
   return result;
@@ -861,16 +869,21 @@ SHEFp log(const SHEFp &a)
   SHEFpBool needNan(a.getSign() || a.isNan() || a.isZero());
   SHEFpBool needInf(a.isInf());
   // the exponent gives us the large portion of the log
-  // already...
+  // already... exponent = floor(log2(a));
   std::cout << "log(" << (SHEFpSummary)a << ")" << std::endl;
   SHEFp result(a,a.getUnbiasedExp());
+  std::cout << " a.unbiasedExp=" << (SHEIntSummary)a.getUnbiasedExp()  << std::endl;
   std::cout << " log2()=" << (SHEFpSummary)result  << std::endl;
+  //convert log2(a) to log_e
   result *= M_LN2;
   std::cout << " ln()=" << (SHEFpSummary)result  << std::endl;
   SHEFp a_(a);
+  // now get the log of just the mantissa
   a_.setUnbiasedExp(0);
   // a is now between 0 and .9999999999, which is quicker
-  // to calculate
+  // to calculate our log as
+  // ln(a)=ln(manissa*2^exp) = ln(mantissa)+ln(2^exp)
+  //                         = ln(mantissa) + exp*ln(2)
   result += _log(a_);
   std::cout << " log()=" << (SHEFpSummary)result  << std::endl;
   result = needInf.select(INFINITY, result);
@@ -884,14 +897,15 @@ SHEFp log10(const SHEFp &a)
   SHEFpBool needNan(a.getSign() || a.isNan() || a.isZero());
   SHEFpBool needInf(a.isInf());
   // the exponent gives us the large portion of the log
-  // already...
+  // already... This mirrors the ln function except
+  // we use M_LOG10E to convert ln values to log10 values
   SHEFp result(a,a.getUnbiasedExp());
   result *= (M_LN2*M_LOG10E);
   SHEFp a_(a);
   a_.setUnbiasedExp(0);
   // a is now between 0 and .9999999999, which is quicker
   // to calculate
-  result += _log1p(a_)*M_LOG10E;
+  result += _log(a_)*M_LOG10E;
   result = needInf.select(INFINITY, result);
   result = needNan.select(NAN, result);
   return result;
@@ -975,6 +989,12 @@ SHEFp pow(const SHEFp &a, shemaxfloat_t b)
 SHEFp sqrt(const SHEFp &a)
 {
   return pow(a,.5);
+}
+
+// see comment for sqrt
+SHEFp cbrt(const SHEFp &a)
+{
+  return pow(a,(shemaxfloat_t)1.0/(shemaxfloat_t)3.0);
 }
 
 // integer and fraction operations
@@ -1096,11 +1116,8 @@ SHEFp acosh(const SHEFp &a) { return a; }
 SHEFp asinh(const SHEFp &a) { return a; }
 SHEFp atanh(const SHEFp &a) { return a; }
 //
-SHEFp cbrt(const SHEFp &a) { return a; }
 SHEFp erf(const SHEFp &a) { return a; }
 SHEFp erfc(const SHEFp &a) { return a; }
-SHEFp fdim(const SHEFp &a, const SHEFp &b) { return a; }
-SHEFp fma(const SHEFp &a, const SHEFp &b, const SHEFp &c) { return a; }
 SHEFp hypot(const SHEFp &a, const SHEFp &b) { return a; }
 SHEFp j0(const SHEFp &a) { return a; }
 SHEFp j1(const SHEFp &a) { return a; }

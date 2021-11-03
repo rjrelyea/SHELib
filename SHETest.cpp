@@ -8,9 +8,49 @@
 #include "SHEVector.h"
 #include "SHEFp.h"
 #include "SHEMath.h"
+#include "getopt.h"
 
-#define NUM_TESTS 20
-#define FLOAT_TESTS 16
+#define NUM_TESTS 22
+#define FLOAT_TESTS 24
+
+// config options now just set the defaults
+// (except SHE_USE_HALF_FLOAT)
+#ifdef SHE_SKIP_FLOAT
+int doFloat = false;
+#else
+int doFloat = true;
+#endif
+#ifdef SHE_SKIP_DIV
+int doDiv = false;
+#else
+int doDiv = true;
+#endif
+#ifdef SHE_SKIP_TRIG
+int doTrig = false;
+#else
+int doTrig = true;
+#endif
+#ifdef SHE_SKIP_LOG
+int doLog = false;
+#else
+int doLog = true;
+#endif
+
+static struct option longOptions[] =
+{
+   // options
+   { "trig", no_argument, &doTrig, true },
+   { "no-trig", no_argument, &doTrig, false },
+   { "div", no_argument, &doDiv, true },
+   { "no-div", no_argument, &doDiv, false },
+   { "float", no_argument, &doFloat, true },
+   { "no-float", no_argument, &doFloat, false },
+   { "log", no_argument, &doLog, true },
+   { "no-log", no_argument, &doLog, false },
+   { "security-level", required_argument, 0, 's' },
+   { "capacity", required_argument, 0, 'c' },
+   { 0, 0, 0, 0 }
+};
 
 uint32_t ftohex(float a) { uint32_t *ap = (uint32_t*)&a; return *ap; }
 uint64_t ftohex(double a) { uint64_t *ap = (uint64_t*)&a; return *ap; }
@@ -19,10 +59,10 @@ uint64_t ftohex(double a) { uint64_t *ap = (uint64_t*)&a; return *ap; }
                          << ftohex(b) << " " << std::dec
 #define FLOAT_CMP_EQ(f,g) ((f != g) ? std::cout << FLOATDUMP(f,g) \
                            << fabs(((f)-(g))/(g)) << " " : std::cout, \
-                           (std::isnan(f) && std::isnan(g)) || \
+                           ((std::isnan(f) && std::isnan(g)) || \
                            (std::isinf(f) && std::isinf(g)) || \
-                           fabs(g) < F_epsilon ? fabs(f) < F_epsilon : \
-                            fabs(((f)-(g))/(g)) < F_epsilon )
+                           (fabs(g) < F_epsilon ? fabs(f) < F_epsilon : \
+                            fabs(((f)-(g))/(g)) < F_epsilon)))
 
 #define RUN_TEST_ALIAS(target, expected, test, ptest) \
   std::cout << " calculating "#ptest \
@@ -197,13 +237,13 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   r[10] = (a == a) && (c == c) ? c : d;
   r[11] = (a == b) || (c == d) ? c : d;
   // division and mod
-#ifndef SHE_SKIP_DIV
-  r[12] = a / b;
-  r[13] = d % c;
-#else
-  r[12] = a + b;
-  r[13] = d - c;
-#endif
+  if (doDiv) {
+    r[12] = a / b;
+    r[13] = d % c;
+  } else {
+    r[12] = a + b;
+    r[13] = d - c;
+  }
   // variable access array
   r[14] = r[i];
   // encrypted index shift
@@ -214,6 +254,8 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   r[18] = d;
   r[18] <<= i;
   r[19] = (int16_t) fb;
+  r[20] = (bool)(fa > fb);
+  r[21] = (bool)(fc < fd);
 
   // unsigned equivalences
   ur[z] = ub;
@@ -228,13 +270,13 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   ur[9] = (ua == ub) || (uc != ud) ? ua : ub;
   ur[10] = (ua == ua) && (uc == uc) ? uc : ud;
   ur[11] = (ua == ub) || (uc == ud) ? uc : ud;
-#ifndef SHE_SKIP_DIV
-  ur[12] = ua / ub;
-  ur[13] = ud % uc;
-#else
-  ur[12] = ua + ub;
-  ur[13] = ud - uc;
-#endif
+  if (doDiv) {
+    ur[12] = ua / ub;
+    ur[13] = ud % uc;
+  } else {
+    ur[12] = ua + ub;
+    ur[13] = ud - uc;
+  }
   ur[14] = ur[ui];
   ur[15] = ua >> ui;
   ur[16] = ua;
@@ -243,39 +285,57 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   ur[18] = ud;
   ur[18] <<= ui;
   ur[19] = (uint16_t) fb;
+  ur[20] = (bool)(fa > fb);
+  ur[21] = (bool)(fc < fd);
 
-#ifndef SHE_SKIP_FLOAT
-  // floating point operations
-  fr[z] = fb;
-  fr[1] = fa * fb;
-  fr[2] = fa + fb;
-  fr[3] = fa - fb;
-  fr[4] = (fa > fb) && (fc < fd) ? fa : fb;
-#ifndef SHE_SKIP_DIV
-  fr[5] = fa/fb;
-  fr[6] = fc/fd;
-#else
-  fr[5] = fc+fd;
-  fr[6] = fc*fd;
-#endif
-  fr[7] = fa*fb - fc*fd;
-  fr[8] = fr[i];
-  fr[9] = (float) b;
-#ifndef SHE_SKIP_TRIG
-  fr[10] = sinf(fb);
-  fr[11] = cosf(fb);
-  fr[12] = expf(fb);
-  fr[13] = tanf(fb);
-  fr[14] = logf(fa);
-  fr[15] = remainderf(fa,fb);
-#else
-  fr[10] = roundf(fb);
-  fr[11] = ceilf(fb);
-  fr[12] = floorf(fb);
-  fr[13] = truncf(fa);
-  fr[14] = modff(fb,&fr[15]);
-#endif
-#endif
+  if (doFloat) {
+    // floating point operations
+    fr[z] = fb;
+    fr[1] = fa * fb;
+    fr[2] = fa + fb;
+    fr[3] = fa - fb;
+    fr[4] = (fa > fb) && (fc < fd) ? fa : fb;
+    if (doDiv) {
+      fr[5] = fa/fb;
+      fr[6] = fc/fd;
+    } else {
+      fr[5] = fc+fd;
+      fr[6] = fc*fd;
+    }
+    fr[7] = fa*fb - fc*fd;
+    fr[8] = fr[i];
+    fr[9] = (float) b;
+    if (doDiv) {
+      fr[10] = sinf(fb);
+      fr[11] = cosf(fb);
+      fr[12] = expf(fb);
+      fr[13] = tanf(fb);
+    } else {
+      fr[10] = fb;
+      fr[11] = fb;
+      fr[12] = fb;
+      fr[13] = fb;
+    }
+    if (doLog) {
+      fr[14] = logf(fa);
+      fr[15] = log2f(fa);
+      fr[16] = log10f(fa);
+    } else {
+      fr[14] = fa;
+      fr[15] = fa;
+      fr[16] = fa;
+    }
+    if (doDiv) {
+      fr[17] = remainderf(fa,fb);
+    } else {
+      fr[17] = fa;
+    }
+    fr[18] = roundf(fb);
+    fr[19] = ceilf(fb);
+    fr[20] = floorf(fb);
+    fr[21] = truncf(fa);
+    fr[22] = modff(fb,&fr[23]);
+  }
 
   //Time the encrypted operations
   std::cout << "-------------- encrypted math tests"  << std::endl;
@@ -300,13 +360,13 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST_ALIAS(er[11], r[11],
                  er[11] = ((ea == eb) || (ec == ed)).select(ec,ed),
                  er[11] = ((ea == eb) || (ec == ed)) ? ec : ed)
-#ifndef SHE_SKIP_DIV
-  RUN_TEST(er[12], r[12], er[12] = ea / eb)
-  RUN_TEST(er[13], r[13], er[13] = ed % ec)
-#else
-  RUN_TEST(er[12], r[12], er[12] = ea + eb)
-  RUN_TEST(er[13], r[13], er[13] = ed - ec)
-#endif
+  if (doDiv) {
+    RUN_TEST(er[12], r[12], er[12] = ea / eb)
+    RUN_TEST(er[13], r[13], er[13] = ed % ec)
+  } else {
+    RUN_TEST(er[12], r[12], er[12] = ea + eb)
+    RUN_TEST(er[13], r[13], er[13] = ed - ec)
+  }
   RUN_TEST(er[14], r[14], er[14] = er[ei])
   RUN_TEST(er[15], r[15], er[15] = ea >> ei)
   er[16] = ea;
@@ -316,6 +376,8 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST(er[18], r[18], er[18] <<= ei)
   RUN_TEST_ALIAS(er[19], r[19], er[19] = (SHEInt16) efb.toSHEInt(),
                  eur[19] = (SHEUInt16) efb)
+  RUN_TEST(er[20], r[20], er[20] = (SHEUInt16) (efa > efb))
+  RUN_TEST(er[21], r[21], er[21] = (SHEUInt16) (efc < efd))
 
   std::cout << "..unsign ints"  << std::endl;
   RUN_TEST_ALIAS(eur[euz], ur[z], eur.assign(euz,eub), eur[euz] = eub)
@@ -338,13 +400,13 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST_ALIAS(eur[11], ur[11],
                  eur[11] = ((eua == eub) || (euc == eud)).select(euc,eud),
                  eur[11] = ((eua == eub) || (euc == eud)) ? euc : eud)
-#ifndef SHE_SKIP_DIV
-  RUN_TEST(eur[12], ur[12], eur[12] = eua / eub)
-  RUN_TEST(eur[13], ur[13], eur[13] = eud % euc)
-#else
-  RUN_TEST(eur[12], ur[12], eur[12] = eua + eub)
-  RUN_TEST(eur[13], ur[13], eur[13] = eud - euc)
-#endif
+  if (doDiv) {
+    RUN_TEST(eur[12], ur[12], eur[12] = eua / eub)
+    RUN_TEST(eur[13], ur[13], eur[13] = eud % euc)
+  } else {
+    RUN_TEST(eur[12], ur[12], eur[12] = eua + eub)
+    RUN_TEST(eur[13], ur[13], eur[13] = eud - euc)
+  }
   RUN_TEST(eur[14], ur[14], eur[14] = eur[eui])
   RUN_TEST(eur[15], ur[15], eur[15] = eua >> eui)
   eur[16] = eua;
@@ -354,45 +416,63 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST(eur[18], ur[18], eur[18] <<= eui)
   RUN_TEST_ALIAS(eur[19], ur[19], eur[19] = (SHEUInt16) efb.toSHEInt(),
                  eur[19] = (SHEUInt16) efb)
+  RUN_TEST(eur[20], ur[20], eur[20] = efa > efb)
+  RUN_TEST(eur[21], ur[21], eur[21] = efc < efd)
 
-#ifndef SHE_SKIP_FLOAT
-  std::cout << "..floats "  << std::endl;
-  RUN_TEST_ALIAS(efr[euz], fr[z], efr.assign(ez,efb), efr[ez] = efb)
-  RUN_TEST(efr[1], fr[1], efr[1] = efa * efb)
-  RUN_TEST(efr[1], fr[1], efr[2] = efa + efb)
-  RUN_TEST(efr[1], fr[1], efr[3] = efa - efb)
-  RUN_TEST_ALIAS(efr[4], fr[4],
-                 efr[4] = select((efa > efb) && (efc < efd), efa ,efb),
-                 efr[4] = (efa > efb) && (efc < efd) ? efa : efb)
-#ifndef SHE_SKIP_DIV
-  RUN_TEST(efr[5], fr[5], efr[5] = efa / efb)
-  RUN_TEST(efr[6], fr[6], efr[6] = efc / efd)
-#else
-  RUN_TEST(efr[5], fr[5], efr[5] = efc + efd)
-  RUN_TEST(efr[6], fr[6], efr[6] = efc * efd)
-#endif
-  RUN_TEST(efr[7], fr[7], efr[7] = efa*efb - efc*efd)
-  RUN_TEST(efr[8], fr[8], efr[8] = efr[ei])
+  if (doFloat) {
+    std::cout << "..floats "  << std::endl;
+    RUN_TEST_ALIAS(efr[euz], fr[z], efr.assign(ez,efb), efr[ez] = efb)
+    RUN_TEST(efr[1], fr[1], efr[1] = efa * efb)
+    RUN_TEST(efr[1], fr[1], efr[2] = efa + efb)
+    RUN_TEST(efr[1], fr[1], efr[3] = efa - efb)
+    RUN_TEST_ALIAS(efr[4], fr[4],
+                   efr[4] = select((efa > efb) && (efc < efd), efa ,efb),
+                   efr[4] = (efa > efb) && (efc < efd) ? efa : efb)
+    if (doDiv) {
+      RUN_TEST(efr[5], fr[5], efr[5] = efa / efb)
+      RUN_TEST(efr[6], fr[6], efr[6] = efc / efd)
+    } else {
+      RUN_TEST(efr[5], fr[5], efr[5] = efc + efd)
+      RUN_TEST(efr[6], fr[6], efr[6] = efc * efd)
+    }
+    RUN_TEST(efr[7], fr[7], efr[7] = efa*efb - efc*efd)
+    RUN_TEST(efr[8], fr[8], efr[8] = efr[ei])
 #ifdef SHE_USE_HALF_FLOAT
-  RUN_TEST(efr[9], fr[9], efr[9] = (SHEHalfFloat)eb)
+    RUN_TEST(efr[9], fr[9], efr[9] = (SHEHalfFloat)eb)
 #else
-  RUN_TEST(efr[9], fr[9], efr[9] = (SHEFloat)eb)
+    RUN_TEST(efr[9], fr[9], efr[9] = (SHEFloat)eb)
 #endif
-#ifndef SHE_SKIP_TRIG
-  RUN_TEST(efr[10], fr[10], efr[10] = sin(efb))
-  RUN_TEST(efr[11], fr[11], efr[11] = cos(efb))
-  RUN_TEST(efr[12], fr[12], efr[12] = exp(efb))
-  RUN_TEST(efr[13], fr[13], efr[13] = tan(efb))
-  RUN_TEST(efr[14], fr[14], efr[14] = log(efa))
-  RUN_TEST(efr[15], fr[15], efr[15] = remainder(efa,efb))
-#else
-  RUN_TEST(efr[10], fr[10], efr[10] = round(efb))
-  RUN_TEST(efr[11], fr[11], efr[11] = ceil(efb))
-  RUN_TEST(efr[12], fr[12], efr[12] = floor(efb))
-  RUN_TEST(efr[13], fr[13], efr[13] = trunc(efa))
-  RUN_TEST(efr[14], fr[14], efr[14] = modf(efb,efr[15]))
-#endif
-#endif
+    if (doTrig) {
+      RUN_TEST(efr[10], fr[10], efr[10] = sin(efb))
+      RUN_TEST(efr[11], fr[11], efr[11] = cos(efb))
+      RUN_TEST(efr[12], fr[12], efr[12] = exp(efb))
+      RUN_TEST(efr[13], fr[13], efr[13] = tan(efb))
+    } else {
+      RUN_TEST(efr[10], fr[10], efr[10] = efb)
+      RUN_TEST(efr[11], fr[11], efr[11] = efb)
+      RUN_TEST(efr[12], fr[12], efr[12] = efb)
+      RUN_TEST(efr[13], fr[13], efr[13] = efb)
+    }
+    if (doLog) {
+      RUN_TEST(efr[14], fr[14], efr[14] = log(efa))
+      RUN_TEST(efr[15], fr[15], efr[15] = log2(efa))
+      RUN_TEST(efr[16], fr[16], efr[16] = log10(efa))
+    } else {
+      RUN_TEST(efr[14], fr[14], efr[14] = efa)
+      RUN_TEST(efr[15], fr[15], efr[15] = efa)
+      RUN_TEST(efr[16], fr[16], efr[16] = efa)
+    }
+    if (doDiv) {
+      RUN_TEST(efr[17], fr[17], efr[17] = remainder(efa,efb))
+    } else {
+      RUN_TEST(efr[17], fr[17], efr[17] = efa)
+    }
+    RUN_TEST(efr[18], fr[18], efr[18] = round(efb))
+    RUN_TEST(efr[19], fr[19], efr[19] = ceil(efb))
+    RUN_TEST(efr[20], fr[20], efr[20] = floor(efb))
+    RUN_TEST(efr[21], fr[21], efr[21] = trunc(efa))
+    RUN_TEST(efr[22], fr[22], efr[22] = modf(efb,efr[23]))
+  }
 
   int16_t dr[NUM_TESTS];
   uint16_t dur[NUM_TESTS];
@@ -456,6 +536,7 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
 #endif
 }
 
+
 int main(int argc, char **argv)
 {
   SHEPublicKey pubkey;
@@ -465,14 +546,58 @@ int main(int argc, char **argv)
   int tests = 0;
   long securityLevel = 19;
   long capacity = SHE_CONTEXT_CAPACITY_ANY;
+  const char *argString="TtDdFfLls:c:";
 
-  if (argc > 1) {
-    securityLevel = atoi(argv[1]);
+  int carg;
+
+  while(1) {
+    int optionIndex=0;
+    carg = getopt_long(argc, argv, argString,
+                       longOptions, &optionIndex);
+    if (carg == -1) break;
+    switch (carg) {
+    case 'F':
+      doFloat = true;
+      break;
+    case 'f':
+      doFloat = false;
+      break;
+    case 'L':
+      doLog = true;
+      break;
+    case 'l':
+      doLog = false;
+      break;
+    case 'D':
+      doDiv = true;
+      break;
+    case 'd':
+      doDiv = false;
+      break;
+    case 'T':
+      doTrig = true;
+      break;
+    case 't':
+      doTrig = false;
+      break;
+    case 's':
+      securityLevel = atoi(optarg);
+      break;
+    case 'c':
+      capacity = atoi(optarg);
+      break;
+    default:
+      break;
+    }
   }
-  if (argc > 2) {
-    capacity = atoi(argv[1]);
+  if (optind > argc) {
+    securityLevel = atoi(argv[optind++]);
+  }
+  if (optind > argc) {
+    capacity = atoi(argv[optind++]);
   }
 
+  // add logging to the options list in the future...
 #ifdef notdef
   // logging options
   SHEContext::setLog(std::cout);
@@ -642,13 +767,13 @@ int main(int argc, char **argv)
                 8.4e-7, 5*fb, 2.5e-6, 1.4e-7,  fz, failed, tests);
   do_tests(pubkey, privkey, 1000, -89, -18, 8, z, 2,
                 M_E, M_PI_2, 2.5e-6, 1.4e-7,  fz, failed, tests);
-  do_tests(pubkey, privkey, 1000, -89, -8, 18, z, 8,
+  do_tests(pubkey, privkey, 1000, -89, -8, 18, z, 7,
                 M_E*M_E, 2.5e5, 2.5e-6, 1.4e-7,  fz, failed, tests);
   do_tests(pubkey, privkey, 1000, -89, -8, 28, z, 5,
                 1.001, 2.5e-6, 2.5e-6, 1.4e+5,  fz, failed, tests);
   do_tests(pubkey, privkey, 2000, -89, -28, 8, z, 1,
                 1.001, 1.0, 2.5e-6, 1.4e+4,  fz, failed, tests);
-  do_tests(pubkey, privkey, 2000, -89, -28, 8, z, 9,
+  do_tests(pubkey, privkey, 2000, -89, -28, 8, z, 6,
                 1.001, M_PI/3.0, 2.5e-6, 1.4e+4,  fz, failed, tests);
   do_tests(pubkey, privkey, 2000, -89, -28, 8, z, 3,
                 1.001, M_PI/6.0+10*M_PI, 2.5e-6, 1.4e+4,  fz, failed, tests);
@@ -660,5 +785,5 @@ int main(int argc, char **argv)
   } else {
     std::cout << "PASSED" << std::endl;
   }
-
+  return failed;
 }

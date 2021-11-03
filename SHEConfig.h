@@ -18,10 +18,10 @@
 #define SHECONTEXT_MAX_GEN_SIZE 3
 #define SHECONTEXT_MAX_ORD_SIZE 3
 // SHEMATH_TRIG  number of tailor series for trig functions
-// can't be > 36! or you need to update the tangent array
+// can't be > 36! or you need to update the taylor_tan array
 #define SHEMATH_TRIG_LOOP_COUNT 15
 // number of tailor series for Natural log calculations
-#define SHEMATH_LN_LOOP_COUNT 15
+#define SHEMATH_LN_LOOP_COUNT 5
 
 //////////////////////////////////////////////////////////////
 // flags
