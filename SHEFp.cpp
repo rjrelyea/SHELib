@@ -190,8 +190,7 @@ SHEInt SHEFp::toSHEInt(int bitSize) const
   // encrypted shift on bitSize sized ints versus not having
   // enough bits to properly represent the floating point value.
   // (64 bit ints shifts are very expensive).
-  out = adjustedExp.isNegative().select(out >> -adjustedExp,
-                                        out << adjustedExp);
+  out = out.leftShiftSigned(adjustedExp);
   out = max.select(intmax, out);
   out = sign.select(-out, out);
   return out;
@@ -535,9 +534,9 @@ SHEInt SHEFp::getUnbiasedExp(void) const
   return exp_ - mkBiasExp(exp.getSize());
 }
 
-void SHEFp::setUnbiasedExp(uint64_t e)
+void SHEFp::setUnbiasedExp(int64_t e)
 {
-  SHEInt exp_(exp, (int64_t)e + mkBiasExp(exp.getSize()));
+  SHEInt exp_(exp, e + mkBiasExp(exp.getSize()));
   exp = exp_;
 }
 

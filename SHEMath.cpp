@@ -782,7 +782,7 @@ static std::vector<shemaxfloat_t> lnInvTable = {
 };
 
 // a is < 1 (exp == 0 (unbiased))
-static SHEFp _log(const SHEFp &a)
+static SHEFp _log(const SHEFp &a, SHEFp &log1p_)
 {
   if (sheMathLog)
     (*sheMathLog) << "_log(" << (SHEFpSummary) a << ")=" << std::endl;
@@ -856,13 +856,19 @@ static SHEFp _log(const SHEFp &a)
   // let inv=high^-1, and ln(high) is then looked up in our lnTable/lnInvTable
   // ln(high + fract) = ln(high) + ln (1+fract*inv)
   //                  = ln + log1p(fract*inv)
-  SHEFp result = ln + _log1p(fract*inv);
+  log1p_ = _log1p(fract*inv);
+  SHEFp result = ln + log1p_;
   std::cout << " ln result=" << (SHEFpSummary)result << std::endl;
   return result;
 }
 
 // for now just return based on log
-SHEFp log1p(const SHEFp &a) { return log(a-1.0); }
+SHEFp log1p(const SHEFp &a)
+{
+  // if a is small enough, use the _log1p(a) function
+  // otherise use the log(a+1).
+  return select(a.abs() <= 1.0,_log1p(a), log(a+1.0));
+}
 
 SHEFp log(const SHEFp &a)
 {
@@ -871,7 +877,9 @@ SHEFp log(const SHEFp &a)
   // the exponent gives us the large portion of the log
   // already... exponent = floor(log2(a));
   std::cout << "log(" << (SHEFpSummary)a << ")" << std::endl;
-  SHEFp result(a,a.getUnbiasedExp());
+  SHEInt exp(a.getUnbiasedExp());
+  SHEFp result(a,exp);
+  SHEFp log1p_(a,0.0);
   std::cout << " a.unbiasedExp=" << (SHEIntSummary)a.getUnbiasedExp()  << std::endl;
   std::cout << " log2()=" << (SHEFpSummary)result  << std::endl;
   //convert log2(a) to log_e
@@ -884,7 +892,9 @@ SHEFp log(const SHEFp &a)
   // to calculate our log as
   // ln(a)=ln(manissa*2^exp) = ln(mantissa)+ln(2^exp)
   //                         = ln(mantissa) + exp*ln(2)
-  result += _log(a_);
+  result += _log(a_,log1p_);
+  // get better precision if our exponent == 1.
+  result = select(exp == 1, log1p_, result);
   std::cout << " log()=" << (SHEFpSummary)result  << std::endl;
   result = needInf.select(INFINITY, result);
   result = needNan.select(NAN, result);
@@ -899,13 +909,18 @@ SHEFp log10(const SHEFp &a)
   // the exponent gives us the large portion of the log
   // already... This mirrors the ln function except
   // we use M_LOG10E to convert ln values to log10 values
-  SHEFp result(a,a.getUnbiasedExp());
-  result *= (M_LN2*M_LOG10E);
+  SHEInt exp(a.getUnbiasedExp());
+  SHEFp result(a,exp);
+  result *= M_LN2;
   SHEFp a_(a);
+  SHEFp log1p_(a,0.0);
   a_.setUnbiasedExp(0);
   // a is now between 0 and .9999999999, which is quicker
   // to calculate
-  result += _log(a_)*M_LOG10E;
+  result += _log(a_,log1p_);
+  // get better precision if our exponent == 1.
+  result = select(exp == 1, log1p_, result);
+  result *= M_LOG10E;
   result = needInf.select(INFINITY, result);
   result = needNan.select(NAN, result);
   return result;
@@ -918,10 +933,14 @@ SHEFp log2(const SHEFp &a)
   // floating point number is mantissa*2^exp, so
   // log2(f) = log2(mantissa) + log2(2^exp)
   //         = ln(mantissa)/M_LN2 + exp
-  SHEFp result(a,a.getUnbiasedExp());
+  SHEInt exp(a.getUnbiasedExp());
+  SHEFp result(a,exp);
   SHEFp a_(a);
+  SHEFp log1p_(a,0.0);
   a_.setUnbiasedExp(0);
-  result += _log(a_)*M_LOG2E;
+  result += _log(a_, log1p_)*M_LOG2E;
+  // get better precision if our exponent == 1.
+  result = select(exp == 1, log1p_*M_LOG2E, result);
   result = needInf.select(INFINITY, result);
   result = needNan.select(NAN, result);
   return result;
@@ -1005,6 +1024,32 @@ SHEFp frexp(const SHEFp &a, SHEInt &exp)
   result.setUnbiasedExp(0);
   return result;
 }
+
+SHEFp ldexp(const SHEFp &a, const SHEInt &n)
+{
+  SHEFp result(a);
+  result.setUnbiasedExp(n);
+  return result;
+}
+
+SHEFp ldexp(const SHEFp &a, int64_t n)
+{
+  SHEFp result(a);
+  result.setUnbiasedExp(n);
+  return result;
+}
+
+SHEFp ldexp(shemaxfloat_t f, const SHEInt &n)
+{
+  // get an appropriately sized fp based on n
+  // future, we can look at the precision of 'f'
+  // to guess how bit an fp we need.
+  SHEFp a(n);
+  SHEFp result(a,f);
+  result.setUnbiasedExp(n);
+  return result;
+}
+
 
 SHEFp modf(const SHEFp &a, SHEFp &b)
 {
@@ -1122,7 +1167,6 @@ SHEFp hypot(const SHEFp &a, const SHEFp &b) { return a; }
 SHEFp j0(const SHEFp &a) { return a; }
 SHEFp j1(const SHEFp &a) { return a; }
 SHEFp jn(const SHEInt &n, const SHEFp &a) { return a; }
-SHEFp ldexp(const SHEFp &a, const SHEInt &n) { return a; }
 SHEFp lgamma(const SHEFp &a) { return a; }
 //SHEFp nan(const char *) { return a; }
 SHEFp nextafter(const SHEFp &a, const SHEFp &b) { return a; }

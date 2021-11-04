@@ -177,7 +177,7 @@ public:
   const SHEInt &getExp(void) const { return exp; }
   const SHEInt &getMantissa(void) const { return mantissa; }
   SHEInt getUnbiasedExp(void) const ;
-  void setUnbiasedExp(uint64_t);
+  void setUnbiasedExp(int64_t);
   void setUnbiasedExp(const SHEInt &);
   void setSign(const SHEInt &sign_)
   { sign = sign_; sign.reset(1,true); }

@@ -679,12 +679,60 @@ SHEInt &SHEInt::rightShift(const SHEInt &shift, SHEInt &result) const
 #else
   // walk down the possible shifts and return the one that matches
   result = SHEInt(*this, (uint64_t)0);
+  if (!isUnsigned) {
+    result=isNegative().select(-1,result);
+  }
 
   for (int i=0; i < bitSize; i++) {
     result = (i==shift).select(*this >> i, result);
   }
   return result;
 #endif
+}
+
+// this shift takes in account of the sign of shift and reverses
+// fields if it's negative.
+SHEInt SHEInt::rightShiftSigned(const SHEInt &shift) const
+{
+  // walk down the possible shifts and return the one that matches
+  SHEInt result(*this, (uint64_t)0);
+
+  // If shift is unsigned, reduce to just a normal rightShift
+  if (shift.isUnsigned) {
+    return rightShift(shift,result);
+  }
+  if (!isUnsigned) {
+    result=(isNegative() & !shift.isNegative()).select(-1,result);
+  }
+
+  result = shift.isZero().select(*this, result);
+  for (int i=1; i < bitSize; i++) {
+    result = (i==shift).select(*this >> i, result);
+    result = (-i==shift).select(*this << i, result);
+  }
+  return result;
+}
+
+// this shift takes in account of the sign of shift and reverses
+// fields if it's negative.
+SHEInt SHEInt::leftShiftSigned(const SHEInt &shift) const
+{
+  // walk down the possible shifts and return the one that matches
+  SHEInt result(*this, (uint64_t)0);
+  // If shift is unsigned, reduce to just a normal leftShift
+  if (shift.isUnsigned) {
+    return leftShift(shift,result);
+  }
+  if (!isUnsigned) {
+    result=(isNegative() & shift.isNegative()).select(-1,result);
+  }
+
+  result = shift.isZero().select(*this, result);
+  for (int i=1; i < bitSize; i++) {
+    result = (i==shift).select(*this << i, result);
+    result = (-i==shift).select(*this >> i, result);
+  }
+  return result;
 }
 
 SHEInt SHEInt::abs(void) const

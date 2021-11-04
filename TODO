@@ -11,7 +11,6 @@
    - SHEFp j0(const SHEFp &a) { return a; }
    - SHEFp j1(const SHEFp &a) { return a; }
    - SHEFp jn(const SHEInt &n, const SHEFp &a) { return a; }
-   - SHEFp ldexp(const SHEFp &a, const SHEInt &n) { return a; }
    - SHEFp lgamma(const SHEFp &a) { return a; }
    - //SHEFp nan(const char *) { return a; }
    - SHEFp nextafter(const SHEFp &a, const SHEFp &b) { return a; }
@@ -25,11 +24,12 @@
 - Add Unordered_map:
   - a version that stores the components unencrypted, but are retrieved
     encrypted.
-- Performance improvments
+- Performance improvements
    - Improve FP performance by switching from offset to native exp, and
      tracking nan and inf status with separate bools.
    - add intermediate tables to trig functions using the same method we used
      to improve log performance
+   - put in polynomial based implementations for sqrt and cbrt.
    - create non-normalized versions of addition and multiplication for use
      in SHEMath.h, then normalize at the end.
    - Create 3, 4, 5, and 6 variable versions of needRecrypt, verifyArgs, and

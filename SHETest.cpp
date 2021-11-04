@@ -305,7 +305,7 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
     fr[7] = fa*fb - fc*fd;
     fr[8] = fr[i];
     fr[9] = (float) b;
-    if (doDiv) {
+    if (doTrig) {
       fr[10] = sinf(fb);
       fr[11] = cosf(fb);
       fr[12] = expf(fb);

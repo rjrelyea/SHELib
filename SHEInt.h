@@ -169,6 +169,8 @@ public:
   SHEInt operator%(const SHEInt &a) const;
   SHEInt operator<<(const SHEInt &a) const;
   SHEInt operator>>(const SHEInt &a) const;
+  SHEInt rightShiftSigned(const SHEInt &a) const;
+  SHEInt leftShiftSigned(const SHEInt &a) const;
   SHEInt operator+(uint64_t) const;
   SHEInt operator-(uint64_t a) const;
   SHEInt operator*(uint64_t a) const;
