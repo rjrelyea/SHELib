@@ -14,6 +14,22 @@ ISYSTEM=-isystem ${HELIB_DIR}/include
 RPATH=-Wl,-rpath,${HELIB_LIB}
 endif
 
+ifndef TARGET_INCLUDE
+TARGET_INCLUDE=/usr/include
+endif
+
+ifndef TARGET_LIB
+TARGET_LIB=/usr/lib64
+endif
+
+ifndef TARGET_BIN
+TARGET_BIN=/usr/bin
+endif
+
+ifndef VERSION
+VERSION=0.0
+endif
+
 LDFLAGS=-g ${RPATH} ${HELIB_LIB}/libhelib.a ${HELIB_LIB}/libntl.so ${HELIB_LIB}/libgmp.so -lpthread
 CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS ${ISYSTEM} -std=c++17
 #LDFLAGS=-g -L ${HELIB_LIB} -lhelib -lntl -lgmp
@@ -24,19 +40,28 @@ OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o SHEFp.o SHEMath.o
 LIB=libSHELib.a
 PROG=SHETest SHEPerf SHEEval
 INCLUDE=SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h SHEConfig.h
+BUILD=SHELib.pc
 
-all: ${LIB} ${PROG}
+all: ${LIB} ${PROG} ${BUILD}
 
 clean:
-	rm -rf ${LIB} ${OBJS} ${PROG}
+	rm -rf ${LIB} ${OBJS} ${PROG} ${BUILD}
 
-install: ${LIB} ${PROG}
-	mkdir -p ${DESTDIR}/${HELIB_LIB}
-	mkdir -p ${DESTDIR}/usr/bin
-	mkdir -p ${DESTDIR}/usr/include/SHELib
-	install -c -m 0644 ${LIB} ${DESTDIR}/${HELIB_LIB}
-	install -c -m 0755 ${PROG} ${DESTDIR}/usr/bin
-	install -c -m 0644 ${INCLUDE} ${DESTDIR}/usr/include/SHELib
+install: ${LIB} ${PROG} $(BUILD}
+	mkdir -p ${DESTDIR}/${TARGET_LIB}
+	mkdir -p ${DESTDIR}/${TARGET_BIN}
+	mkdir -p ${DESTDIR}/${TARGET_LIB}/pkgconfig
+	mkdir -p ${DESTDIR}/${TARGET_INCLUDE}/SHELib
+	install -c -m 0644 ${LIB} ${DESTDIR}/${TARGET_LIB}
+	install -c -m 0755 ${PROG} ${DESTDIR}/${TARGET_BIN}
+	install -c -m 0644 ${INCLUDE} ${DESTDIR}/${TARGET_INCLUDE}/SHELib
+	install -c -m 0644 SHELib.pc ${DESTDIR}/${TARGET_INCLUDE}/SHELib
+
+SHELib.pc: SHELib.pc.in
+	cat $< | sed -e "s,%%libdir%%,${TARGET_LIB},g" \
+                     -e "s,%%includedir%%,${TARGET_INCLUDE}/HELib,g" \
+                     -e "s,%%VERSION%%,${VERSION},g" \
+	              > $@
 
 libSHELib.a: ${OBJS}
 	ar -r $@ $?

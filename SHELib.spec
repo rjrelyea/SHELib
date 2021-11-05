@@ -34,10 +34,18 @@ calculations you do.
 {{{ git_dir_setup_macro }}}
 
 %build
+export TARGET_INCLUDE=%{_includedir}
+export TARGET_LIB=%{_libdir}
+export TARGET_BIN=%{_bindir}
+export VERSION=%{version}
 make
 
 %install
 export DESTDIR=$RPM_BUILD_ROOT
+export TARGET_INCLUDE=%{_includedir}
+export TARGET_LIB=%{_libdir}
+export TARGET_BIN=%{_bindir}
+export VERSION=%{version}
 make install
 
 %files
