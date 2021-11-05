@@ -1080,14 +1080,14 @@ SHEFp floor(const SHEFp &a)
   return select(a.getSign() && a.hasFract(), result-1.0, result);
 }
 
-SHEFp rint(const SHEFp &a)
+SHEFp round(const SHEFp &a)
 {
-  SHEFp pos(a+.5);
-  SHEFp neg(a-.5);
-  return select(a.getSign(),pos,neg).trunc();
+  SHEFp result((a.abs()+.5).trunc());
+  result.setSign(a.getSign());
+  return result;
 }
 
-SHEFp round(const SHEFp &a)
+SHEFp rint(const SHEFp &a)
 {
   return (a+.5).trunc();
 }
@@ -1118,7 +1118,7 @@ SHEFp fmod(const SHEFp &a, shemaxfloat_t b)
 
 SHEFp remainder(const SHEFp &a, const SHEFp &b)
 {
-  SHEFp n = round(a/b);
+  SHEFp n = round(a,b);
   return a-n*b;
 }
 
