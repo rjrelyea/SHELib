@@ -1118,7 +1118,7 @@ SHEFp fmod(const SHEFp &a, shemaxfloat_t b)
 
 SHEFp remainder(const SHEFp &a, const SHEFp &b)
 {
-  SHEFp n = round(a,b);
+  SHEFp n = round(a/b);
   return a-n*b;
 }
 

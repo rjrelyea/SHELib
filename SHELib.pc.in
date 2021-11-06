@@ -1,0 +1,9 @@
+libdir=%libdir%
+includedir=%includedir%
+
+Name: SHELib
+Description: Simple Homographic Encryption Library
+Version: %VERSION%
+Requires: HElib
+Libs: -L${libdir} -lSHELib
+Cflags: -I${includedir}/SHELib 

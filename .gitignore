@@ -3,6 +3,9 @@
 keytest.*
 *.json
 *.log
+*.xml
+*.3
+*.html
 libSHELib.a
 SHEEval
 SHEPerf

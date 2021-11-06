@@ -37,6 +37,8 @@ calculations you do.
 export TARGET_INCLUDE=%{_includedir}
 export TARGET_LIB=%{_libdir}
 export TARGET_BIN=%{_bindir}
+export TARGET_MAN=%{_mandir}
+export TARGET_DOC=%{_datadir}/doc
 export VERSION=%{version}
 make
 
@@ -45,15 +47,20 @@ export DESTDIR=$RPM_BUILD_ROOT
 export TARGET_INCLUDE=%{_includedir}
 export TARGET_LIB=%{_libdir}
 export TARGET_BIN=%{_bindir}
+export TARGET_MAN=%{_mandir}
+export TARGET_DOC=%{_datadir}/doc
 export VERSION=%{version}
 make install
 
 %files
 %{_libdir}/libSHELib.a
+%{_libdir}/pkgconfig/SHELib.pc
 %{_bindir}/SHETest
 %{_bindir}/SHEPerf
 %{_bindir}/SHEEval
 %{_includedir}/SHELib
+%doc %{_mandir}/man3/*
+%doc %{_datadir}/SHELib/*
 
 %check
 # do a reasonable test: use float and log, but skip div and trig tests.

@@ -26,6 +26,14 @@ ifndef TARGET_BIN
 TARGET_BIN=/usr/bin
 endif
 
+ifndef TARGET_MAN
+TARGET_BIN=/usr/share/man
+endif
+
+ifndef TARGET_DOC
+TARGET_BIN=/usr/share/doc
+endif
+
 ifndef VERSION
 VERSION=0.0
 endif
@@ -41,21 +49,30 @@ LIB=libSHELib.a
 PROG=SHETest SHEPerf SHEEval
 INCLUDE=SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h SHEConfig.h
 BUILD=SHELib.pc
+MANPAGES=SHELib.3
+HTMLPAGES=SHELib.html
+DOCS=${MANPAGES} ${HTMLPAGES} ${HTMLPAGES:%.html=%.xml}
 
-all: ${LIB} ${PROG} ${BUILD}
+.SUFFIXES: .odt .html .xml .3
+
+all: ${LIB} ${PROG} ${BUILD} ${MANPAGES} ${HTMLPAGES}
 
 clean:
-	rm -rf ${LIB} ${OBJS} ${PROG} ${BUILD}
+	rm -rf ${LIB} ${OBJS} ${PROG} ${BUILD} ${DOCS}
 
-install: ${LIB} ${PROG} $(BUILD}
+install: ${LIB} ${PROG} ${BUILD} ${MANPAGES} ${HTMLPAGES}
 	mkdir -p ${DESTDIR}/${TARGET_LIB}
 	mkdir -p ${DESTDIR}/${TARGET_BIN}
 	mkdir -p ${DESTDIR}/${TARGET_LIB}/pkgconfig
 	mkdir -p ${DESTDIR}/${TARGET_INCLUDE}/SHELib
+	mkdir -p ${DESTDIR}/${TARGET_MAN}/man3
+	mkdir -p ${DESTDIR}/${TARGET_DOC}/SHELib
 	install -c -m 0644 ${LIB} ${DESTDIR}/${TARGET_LIB}
 	install -c -m 0755 ${PROG} ${DESTDIR}/${TARGET_BIN}
 	install -c -m 0644 ${INCLUDE} ${DESTDIR}/${TARGET_INCLUDE}/SHELib
 	install -c -m 0644 SHELib.pc ${DESTDIR}/${TARGET_INCLUDE}/SHELib
+	install -c -m 0644 ${MAN_PAGES} ${DESTDIR}/${TARGET_MAN}/man3
+	install -c -m 0644 ${MAN_PAGES} ${DESTDIR}/${TARGET_DOC}/SHELib
 
 SHELib.pc: SHELib.pc.in
 	cat $< | sed -e "s,%%libdir%%,${TARGET_LIB},g" \
@@ -77,6 +94,15 @@ SHEEval: SHEEval.o ${LIB}
 
 .cpp.o:
 	g++ -g -c -o $@ ${CPPFLAGS} $<
+
+.odt.xml:
+	pandoc $< -t docbook -o $@
+
+.xml.html:
+	pandoc $< -t html -o $@
+
+.xml.3:
+	pandoc $< -t man -o $@
 
 SHEContext.o: SHEContext.h
 SHEMath.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEFp.h SHEConfig.h SHEMath.h
