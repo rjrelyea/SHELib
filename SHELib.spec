@@ -13,6 +13,7 @@ BuildRequires: HElib > 2.0.0
 BuildRequires: gmp-devel
 BuildRequires: gcc-c++
 BuildRequires: make
+BuildRequires: pandoc
 Requires: HELib > 2.0.0
 
 %description
