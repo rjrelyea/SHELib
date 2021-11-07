@@ -15,35 +15,44 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
   Timer timer;
   // comparison is the most level intensive operation.. compare
   // full level versus reCrypted version
+  SHEInt::resetRecryptCounters();
   std::cout << "      >init bit capacity:" << a.bitCapacity() << std::endl;
   std::cout << "      > a<b: " << std::flush;
   timer.start();
   rb = a < b;
   timer.stop();
-  std::cout << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << "boostraps = "
+            << SHEInt::getRecryptCounters() << std::endl;
   std::cout << "      > a-b: " << std::flush;
   timer.start();
   rs = a - b;
   timer.stop();
-  std::cout << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << "boostraps = "
+            << SHEInt::getRecryptCounters() << std::endl;
   std::cout << "     >post cmp bit capacity:" << rb.bitCapacity() << std::endl;
   std::cout << "     >post sub bit capacity:" << rs.bitCapacity() << std::endl;
   std::cout << "  >double boostrap time: " << std::flush;
+  SHEInt::resetRecryptCounters();
   timer.start();
   b.reCrypt(a);
   timer.stop();
-  std::cout << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << "boostraps = "
+            << SHEInt::getRecryptCounters() << std::endl;
   std::cout << "     >post bootstrap bit capacity:" << a.bitCapacity() << std::endl;
   std::cout << "     > a<b (post bootstrap): " << std::flush;
+  SHEInt::resetRecryptCounters();
   timer.start();
   rb = a < b;
   timer.stop();
-  std::cout << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << "boostraps = "
+            << SHEInt::getRecryptCounters() << std::endl;
   std::cout << "     > a-b (post bootsrap): " << std::flush;
+  SHEInt::resetRecryptCounters();
   timer.start();
   rs = a - b;
   timer.stop();
-  std::cout << (PrintTime) timer.elapsedMilliseconds() << std::endl;
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << "boostraps = "
+            << SHEInt::getRecryptCounters() << std::endl;
   std::cout << "     >post cmp bit capacity:" << rb.bitCapacity() << std::endl;
   std::cout << "     >post sub bit capacity:" << rs.bitCapacity() << std::endl;
 }

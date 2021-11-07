@@ -67,7 +67,7 @@ uint64_t ftohex(double a) { uint64_t *ap = (uint64_t*)&a; return *ap; }
 #define RUN_TEST_ALIAS(target, expected, test, ptest) \
   std::cout << " calculating "#ptest \
              << std:: endl; \
-  SHEInt::resetReccryptCounters(); \
+  SHEInt::resetRecryptCounters(); \
   timer.start(); \
   test ; \
   timer.stop(); \

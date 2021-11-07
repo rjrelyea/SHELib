@@ -327,7 +327,7 @@ public:
   void reCrypt(SHEInt &a);
   static SHERecryptCounters getRecryptCounters(void)
           { return recryptCounters; }
-  static void resetReccryptCounters(void)  { recryptCounters = { 0 }; }
+  static void resetRecryptCounters(void)  { recryptCounters = { 0 }; }
 
 #ifdef DEBUG
   static void setDebugPrivateKey(SHEPrivateKey &privKey)
