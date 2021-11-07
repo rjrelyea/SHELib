@@ -71,8 +71,8 @@ install: ${LIB} ${PROG} ${BUILD} ${MANPAGES} ${HTMLPAGES}
 	install -c -m 0755 ${PROG} ${DESTDIR}/${TARGET_BIN}
 	install -c -m 0644 ${INCLUDE} ${DESTDIR}/${TARGET_INCLUDE}/SHELib
 	install -c -m 0644 SHELib.pc ${DESTDIR}/${TARGET_INCLUDE}/SHELib
-	install -c -m 0644 ${MAN_PAGES} ${DESTDIR}/${TARGET_MAN}/man3
-	install -c -m 0644 ${MAN_PAGES} ${DESTDIR}/${TARGET_DOC}/SHELib
+	install -c -m 0644 ${MANPAGES} ${DESTDIR}/${TARGET_MAN}/man3
+	install -c -m 0644 $(HTMLPAGES} ${DESTDIR}/${TARGET_DOC}/SHELib
 
 SHELib.pc: SHELib.pc.in
 	cat $< | sed -e "s,%%libdir%%,${TARGET_LIB},g" \
