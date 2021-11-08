@@ -70,7 +70,7 @@ install: ${LIB} ${PROG} ${BUILD} ${MANPAGES} ${HTMLPAGES}
 	install -c -m 0644 ${LIB} ${DESTDIR}/${TARGET_LIB}
 	install -c -m 0755 ${PROG} ${DESTDIR}/${TARGET_BIN}
 	install -c -m 0644 ${INCLUDE} ${DESTDIR}/${TARGET_INCLUDE}/SHELib
-	install -c -m 0644 SHELib.pc ${DESTDIR}/${TARGET_LIB}/pkconfig
+	install -c -m 0644 SHELib.pc ${DESTDIR}/${TARGET_LIB}/pkgconfig
 	install -c -m 0644 ${MANPAGES} ${DESTDIR}/${TARGET_MAN}/man3
 	install -c -m 0644 ${HTMLPAGES} ${DESTDIR}/${TARGET_DOC}/SHELib
 
