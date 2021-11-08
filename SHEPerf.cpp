@@ -20,7 +20,7 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
    std::cout << "  > a+b: " << std::flush;
    r = a + b;
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
 #else
    std::cout << "  >decrypt time: " << std::flush;
@@ -29,28 +29,28 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
    uint64_t da = a.decryptRaw(privkey);
    uint64_t db = b.decryptRaw(privkey);
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
    SHEInt::resetRecryptCounters();
    timer.start();
    std::cout << "  > a+b: " << std::flush;
    r = a + b;
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
    std::cout << "  > a-b: " << std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
    r = a - b;
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
    std::cout << "  > a*b: " <<  std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
    r = a * b;
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
 #ifndef SHE_SKIP_DIV
    std::cout << "  > a/b: " <<  std::flush;
@@ -58,7 +58,7 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
    timer.start();
    r = a / b;
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
 #else
    std::cout << "  > a/b: " <<  "skipped" << std::endl;
@@ -68,49 +68,49 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
    timer.start();
    r = a & b;
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
    std::cout << "  > a|b: " <<  std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
    r = a | b;
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
    std::cout << "  > a==b: " << std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
    rb = a == b;
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
    std::cout << "  > a<b: " << std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
    rb = a < b;
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
    std::cout << "  > r?a:b: " << std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
    r = rb.select(a,b);
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
    std::cout << "  >boostrap time: " << std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
    r.reCrypt();
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
    std::cout << "  >double boostrap time: " << std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
    r.reCrypt(a);
    timer.stop();
-   std::cout << (PrintTime) timer.elapsedMilliseconds()  << "bootstraps="
+   std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
 #endif
 }
