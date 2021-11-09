@@ -13,7 +13,9 @@ BuildRequires: HElib > 2.0.0
 BuildRequires: gmp-devel
 BuildRequires: gcc-c++
 BuildRequires: make
+%if 0%{?rhel} != 9
 BuildRequires: pandoc
+%endif
 Requires: HELib > 2.0.0
 
 %description
@@ -51,7 +53,11 @@ export TARGET_BIN=%{_bindir}
 export TARGET_MAN=%{_mandir}
 export TARGET_DOC=%{_datadir}/doc
 export VERSION=%{version}
+%if 0%{?rhel} != 9
 make install
+%else
+make install-nodoc
+%endif
 
 %files
 %{_libdir}/libSHELib.a
@@ -60,8 +66,10 @@ make install
 %{_bindir}/SHEPerf
 %{_bindir}/SHEEval
 %{_includedir}/SHELib
+%if 0%{?rhel} != 9
 %doc %{_mandir}/man3/*
 %doc %{_datadir}/doc/SHELib
+%endif
 
 %check
 # do a reasonable test: use float, but skip div, log and trig tests.
