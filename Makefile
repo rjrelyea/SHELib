@@ -57,6 +57,8 @@ DOCS=${MANPAGES} ${HTMLPAGES} ${HTMLPAGES:%.html=%.xml}
 
 all: ${LIB} ${PROG} ${BUILD} ${MANPAGES} ${HTMLPAGES}
 
+no-doc: ${LIB} ${PROG} ${BUILD}
+
 clean:
 	rm -rf ${LIB} ${OBJS} ${PROG} ${BUILD} ${DOCS}
 

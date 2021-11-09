@@ -43,7 +43,11 @@ export TARGET_BIN=%{_bindir}
 export TARGET_MAN=%{_mandir}
 export TARGET_DOC=%{_datadir}/doc
 export VERSION=%{version}
+%if 0%{?rhel} != 9
 make
+%else
+make nodoc
+%endif
 
 %install
 export DESTDIR=$RPM_BUILD_ROOT
