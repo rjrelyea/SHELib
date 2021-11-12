@@ -490,13 +490,13 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
               << std::endl;
     dur[i] = eur[i].decrypt(privkey);
   }
-#ifndef SHE_SKIP_FLOAT
-  for (int i = 0; i < efr.size(); i++) {
-    std::cout << "efr[" << i << "].bitCapacity: " << efr[i].bitCapacity()
-              << std::endl;
-    dfr[i] = efr[i].decrypt(privkey);
+  if (doFloat) {
+    for (int i = 0; i < efr.size(); i++) {
+      std::cout << "efr[" << i << "].bitCapacity: " << efr[i].bitCapacity()
+                << std::endl;
+      dfr[i] = efr[i].decrypt(privkey);
+    }
   }
-#endif
   timer.stop();
   std::cout << " decrypt time = "
             << (PrintTime) timer.elapsedMilliseconds() << std::endl;
@@ -522,18 +522,18 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
     }
     tests++; std::cout << std::endl;
   }
-#ifndef SHE_SKIP_FLOAT
-  for (int i = 0; i < FLOAT_TESTS; i++) {
-    std::cout << "fr[" << i << "]=" << fr[i] << " dfr[" << i << "]="
-              << dfr[i] << " ";
-    if (FLOAT_CMP_EQ(fr[i],dfr[i])) {
-      std::cout << "PASS";
-    } else {
-      failed++; std::cout <<"FAIL";
+  if (doFloat) {
+    for (int i = 0; i < FLOAT_TESTS; i++) {
+      std::cout << "fr[" << i << "]=" << fr[i] << " dfr[" << i << "]="
+                << dfr[i] << " ";
+      if (FLOAT_CMP_EQ(fr[i],dfr[i])) {
+        std::cout << "PASS";
+      } else {
+        failed++; std::cout <<"FAIL";
+      }
+      tests++; std::cout << std::endl;
     }
-    tests++; std::cout << std::endl;
   }
-#endif
 }
 
 

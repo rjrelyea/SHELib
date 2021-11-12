@@ -144,15 +144,17 @@ bool SHEInt::needRecrypt(const SHEInt &a, long level) const
   return needRecrypt(level) || a.needRecrypt(level);
 }
 
-void SHEInt::reCrypt(SHEInt &a)
+void SHEInt::reCrypt(SHEInt &a, bool force)
 {
-  if ((isExplicitZero) || (bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
-    a.reCrypt();
-    return;
-  }
-  if ((a.isExplicitZero) || (a.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
-    reCrypt();
-    return;
+  if (!force) {
+    if ((isExplicitZero) || (bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      a.reCrypt(false);
+      return;
+    }
+    if ((a.isExplicitZero) || (a.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(false);
+      return;
+    }
   }
   if (log) {
     (*log) << "[Recrypt(" << (SHEIntSummary)*this << ","
@@ -169,11 +171,11 @@ void SHEInt::reCrypt(SHEInt &a)
   }
 }
 
-void SHEInt::reCrypt(void)
+void SHEInt::reCrypt(bool force)
 {
   // don't check threshold here. If we wound up here with a greater threshold
   // it means we have been specifically requested to bootstrap
-  if (isExplicitZero) {
+  if (!force && isExplicitZero) {
     return;
   }
   helib::CtPtrs_vectorCt wrapper(encryptedData);
@@ -193,14 +195,14 @@ void SHEInt::reCrypt(void)
 void SHEInt::verifyArgs(SHEInt &a, long level)
 {
   if (needRecrypt(a,level)) {
-    reCrypt(a);
+    reCrypt(a, false);
   }
 }
 
 void SHEInt::verifyArgs(long level)
 {
   if (needRecrypt(level)) {
-    reCrypt();
+    reCrypt(false);
   }
 }
 
@@ -642,17 +644,6 @@ void SHEInt::rightShift(uint64_t shift)
 // (O(bitSize^2) single bit multiplies and a xor) and capacity.
 SHEInt &SHEInt::leftShift(const SHEInt &shift, SHEInt &result) const
 {
-#ifdef USE_BITS
-  // walk down each bit and select it from the exiting bits
-  result = *this;
-  helib::Ctxt zero(pubKey->getPublicKey());
-  zero.clear();
-
-  for (int i=bitSize-1; i >= 0; i--) {
-    result.encryptedData[i] = selectArrayBit(shift, i, 1, zero);
-  }
-  return result;
-#else
   // walk down the possible shifts and return the one that matches
   result = SHEInt(*this, (uint64_t)0);
 
@@ -660,23 +651,10 @@ SHEInt &SHEInt::leftShift(const SHEInt &shift, SHEInt &result) const
     result = (i==shift).select(*this << i, result);
   }
   return result;
-#endif
 }
 
 SHEInt &SHEInt::rightShift(const SHEInt &shift, SHEInt &result) const
 {
-#ifdef USE_BITS
-  // walk down each bit and select it from the exiting bits
-  result = *this;
-  helib::Ctxt pad = encryptedData[bitSize-1];
-  if (isUnsigned) {
-    pad.clear();
-  }
-  for (int i=0; i < bitSize; i++) {
-    result.encryptedData[i] = selectArrayBit(shift, i, 0, pad);
-  }
-  return result;
-#else
   // walk down the possible shifts and return the one that matches
   result = SHEInt(*this, (uint64_t)0);
   if (!isUnsigned) {
@@ -687,7 +665,6 @@ SHEInt &SHEInt::rightShift(const SHEInt &shift, SHEInt &result) const
     result = (i==shift).select(*this >> i, result);
   }
   return result;
-#endif
 }
 
 // this shift takes in account of the sign of shift and reverses
@@ -695,17 +672,22 @@ SHEInt &SHEInt::rightShift(const SHEInt &shift, SHEInt &result) const
 SHEInt SHEInt::rightShiftSigned(const SHEInt &shift) const
 {
   // walk down the possible shifts and return the one that matches
+  // if none matches, the result is zero
   SHEInt result(*this, (uint64_t)0);
 
   // If shift is unsigned, reduce to just a normal rightShift
   if (shift.isUnsigned) {
     return rightShift(shift,result);
   }
+  // If this is signed and negative, default result of a right
+  // shift (shift is positive) is -1, not zero.
   if (!isUnsigned) {
     result=(isNegative() & !shift.isNegative()).select(-1,result);
   }
 
+  // handle the no shift case first
   result = shift.isZero().select(*this, result);
+  // now check each positive an negative shift up to bitsize
   for (int i=1; i < bitSize; i++) {
     result = (i==shift).select(*this >> i, result);
     result = (-i==shift).select(*this << i, result);
@@ -718,16 +700,21 @@ SHEInt SHEInt::rightShiftSigned(const SHEInt &shift) const
 SHEInt SHEInt::leftShiftSigned(const SHEInt &shift) const
 {
   // walk down the possible shifts and return the one that matches
+  // if none matches, the result is zero
   SHEInt result(*this, (uint64_t)0);
   // If shift is unsigned, reduce to just a normal leftShift
   if (shift.isUnsigned) {
     return leftShift(shift,result);
   }
+  // If this is signed and negative, default result of a right
+  // shift (shift is negative) is -1, not zero.
   if (!isUnsigned) {
     result=(isNegative() & shift.isNegative()).select(-1,result);
   }
 
+  // handle the no shift case first
   result = shift.isZero().select(*this, result);
+  // now check each positive an negative shift up to bitsize
   for (int i=1; i < bitSize; i++) {
     result = (i==shift).select(*this << i, result);
     result = (-i==shift).select(*this >> i, result);
@@ -758,8 +745,6 @@ SHEInt &SHEInt::udivRaw(const SHEInt &div, SHEInt *result, SHEInt *mod) const
 {
   SHEInt dividend(*this,"dividend");
   SHEInt divisor(div,"divisor");
-  // for our math case, make sure the dividend has at least as many
-  // bits as the divisor
   if (log) {
     (*log) << (SHEIntSummary) *this << ".udivRaw("
           << (SHEIntSummary) divisor << ",";
@@ -775,19 +760,19 @@ SHEInt &SHEInt::udivRaw(const SHEInt &div, SHEInt *result, SHEInt *mod) const
     }
     (*log) << "=" << std::endl;
   }
+  // for our math case, make sure the dividend has at least as many
+  // bits as the divisor
   dividend.verifyArgs(divisor, SHEINT_DEFAULT_LEVEL_TRIGGER*2);
   if ( bitSize < divisor.bitSize) {
     dividend.reset(divisor.bitSize, true);
   }
-  // get a handy zero to initialize our variables
-  SHEInt zero(*pubKey, 0, dividend.bitSize, true);
   // below we keep a couple of versions, one that will record the final
   // result of the loop, and one that continues to shift/decrement through the
   // whole loop, We'll use encrypted select to decide when to stop updating
   // the result version
-  SHEInt remainder(zero,"remainder");
-  SHEInt quotient(zero,"quotient");
-  SHEInt quotientShift(zero,"quotientShift");
+  SHEInt remainder(dividend, 0, "remainder");
+  SHEInt quotient(dividend, 0, "quotient");
+  SHEInt quotientShift(dividend, 0, "quotientShift");
   SHEInt sel(*pubKey, 1, 1, true, "sel");
 
   // this is logically 'while remainder < dividend'. We don't know when
@@ -807,7 +792,7 @@ SHEInt &SHEInt::udivRaw(const SHEInt &div, SHEInt *result, SHEInt *mod) const
     quotient.verifyArgs(quotientShift, SHEINT_DEFAULT_LEVEL_TRIGGER*2);
     sel = sel && remainder < divisor;
     dividend.leftShift(1);
-    SHEInt t(*pubKey,0,bitSize,false,"t");
+    SHEInt t(*pubKey, 0, bitSize, false, "t");
     t = remainder - divisor;
     helib::Ctxt qbit = t.encryptedData[dividend.bitSize-1];
     quotientShift = quotient << 1;

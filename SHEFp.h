@@ -57,8 +57,6 @@ private:
   }
 
 protected:
-  SHEFp(const SHEPublicKey &pubkey, shemaxfloat_t val,
-        int expSize, int mantissaSize, const char *lable=nullptr);
   SHEFp(const SHEPublicKey &pubkey, const unsigned char *encryptedInt,
          int size, const char *label=nullptr);
   // used so the parent can reset the bit sizes to the proper native values to
@@ -73,6 +71,10 @@ public:
    static constexpr std::string_view typeName = "SHEFp";
   ~SHEFp(void) { labelHash.erase(this); }
   // copy operators
+  SHEFp(const SHEPublicKey &pubkey, shemaxfloat_t val,
+        int expSize, int mantissaSize, const char *label=nullptr);
+  SHEFp(const SHEPublicKey &pubkey) :
+        sign(pubkey), exp(pubkey), mantissa(pubkey) { resetNative(); }
   SHEFp(const SHEFp &a, const char *label) :
      sign(a.sign), exp(a.exp), mantissa(a.mantissa)
   { if (label) { labelHash[this] = label; } }
@@ -214,8 +216,8 @@ public:
                    long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const;
   void verifyArgs(long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
   void verifyArgs(SHEFp &a, long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
-  void reCrypt(void);
-  void reCrypt(SHEFp &a);
+  void reCrypt(bool force=false);
+  void reCrypt(SHEFp &a, bool force=false);
 
 #ifdef DEBUG
   static void setDebugPrivateKey(SHEPrivateKey &privKey)

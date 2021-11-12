@@ -311,32 +311,32 @@ bool SHEFp::needRecrypt(const SHEFp &a, long level) const
 }
 
 /* maybe we should do a 6 var packed recrypt here? */
-void SHEFp::reCrypt(SHEFp &a)
+void SHEFp::reCrypt(SHEFp &a, bool force)
 {
-  sign.reCrypt(a.sign);
-  exp.reCrypt(a.exp);
-  mantissa.reCrypt(a.mantissa);
+  sign.reCrypt(a.sign, force);
+  exp.reCrypt(a.exp, force);
+  mantissa.reCrypt(a.mantissa, force);
 }
 
 /* maybe we should do a 3 var packed recrypt here? */
-void SHEFp::reCrypt(void)
+void SHEFp::reCrypt(bool force)
 {
-  exp.reCrypt(mantissa);
-  sign.reCrypt();
+  exp.reCrypt(mantissa, force);
+  sign.reCrypt(force);
 }
 
 
 void SHEFp::verifyArgs(SHEFp &a, long level)
 {
   if (needRecrypt(a,level)) {
-    reCrypt(a);
+    reCrypt(a, false);
   }
 }
 
 void SHEFp::verifyArgs(long level)
 {
   if (needRecrypt(level)) {
-    reCrypt();
+    reCrypt(false);
   }
 }
 
@@ -427,7 +427,7 @@ std::ostream &operator<<(std::ostream& str, const SHEFpSummary &summary)
 
 bool SHEFp::isCorrect(void) const
 {
-  return sign.isCorrect() || exp.isCorrect() || mantissa.isCorrect();
+  return sign.isCorrect() && exp.isCorrect() && mantissa.isCorrect();
 }
 
 unsigned char *SHEFp::flatten(int &size, bool ascii) const

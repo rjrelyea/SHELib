@@ -34,7 +34,7 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
   std::cout << "  >double boostrap time: " << std::flush;
   SHEInt::resetRecryptCounters();
   timer.start();
-  b.reCrypt(a);
+  b.reCrypt(a, true);
   timer.stop();
   std::cout << (PrintTime) timer.elapsedMilliseconds() << " boostraps = "
             << SHEInt::getRecryptCounters() << std::endl;

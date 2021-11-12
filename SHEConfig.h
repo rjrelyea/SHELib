@@ -22,6 +22,8 @@
 #define SHEMATH_TRIG_LOOP_COUNT 15
 // number of tailor series for Natural log calculations
 #define SHEMATH_LN_LOOP_COUNT 5
+// number of Simpson interations to calculate an integral
+#define SHEMATH_INTEGRAL_LOOP_COUNT 25
 
 //////////////////////////////////////////////////////////////
 // flags

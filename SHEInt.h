@@ -125,6 +125,10 @@ protected:
 public:
    static constexpr std::string_view typeName = "SHEInt";
   ~SHEInt(void) { labelHash.erase(this); }
+  // empty constructor for SHEInt with minimal values and size;
+  SHEInt(const SHEPublicKey &pubkey) :
+         pubKey(&pubkey), isUnsigned(true),
+         bitSize(0), isExplicitZero(true) { resetNative();}
   // basic constructor for custom SHEInt values;
   SHEInt(const SHEPublicKey &pubkey, uint64_t myInt,
          int bitSize, bool isUnsigned, const char *label=nullptr);
@@ -323,8 +327,8 @@ public:
                    long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const;
   void verifyArgs(long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
   void verifyArgs(SHEInt &a, long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
-  void reCrypt(void);
-  void reCrypt(SHEInt &a);
+  void reCrypt(bool force=false);
+  void reCrypt(SHEInt &a, bool force=false);
   static SHERecryptCounters getRecryptCounters(void)
           { return recryptCounters; }
   static void resetRecryptCounters(void)  { recryptCounters = { 0 }; }

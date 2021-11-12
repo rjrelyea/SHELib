@@ -43,11 +43,12 @@ CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS ${ISYSTEM} -std=c++17
 #LDFLAGS=-g -L ${HELIB_LIB} -lhelib -lntl -lgmp
 
 
-#OBJS=SHEKey.o SHEInt.o
+#OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o SHEFp.o SHEString.o SHEMath.o
 OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o SHEFp.o SHEMath.o
 LIB=libSHELib.a
-PROG=SHETest SHEPerf SHEEval
-INCLUDE=SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h SHEConfig.h
+PROG=SHETest SHEPerf SHEEval SHEMathTest
+#INCLUDE=SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h SHEString.h SHEConfig.h helibio.h
+INCLUDE=SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h SHEConfig.h helibio.h
 BUILD=SHELib.pc
 MANPAGES=SHELib.3
 HTMLPAGES=SHELib.html
@@ -94,6 +95,9 @@ SHELib.pc: SHELib.pc.in
 
 libSHELib.a: ${OBJS}
 	ar -r $@ $?
+
+SHEMathTest: SHEMathTest.o ${LIB}
+	g++ -o $@ $< ${LIB} ${LDFLAGS}
 
 SHETest: SHETest.o ${LIB}
 	g++ -o $@ $< ${LIB} ${LDFLAGS}

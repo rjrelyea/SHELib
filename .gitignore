@@ -10,4 +10,5 @@ libSHELib.a
 SHEEval
 SHEPerf
 SHETest
+SHEMathTest
 SHELib.pc

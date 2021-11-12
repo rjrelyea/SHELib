@@ -2,20 +2,11 @@
    - test Encrypted+non-encrypted cases
    - test all the operator x= cases.
 - Add missing math.h functions (see SHEMath.cpp).
-   - SHEFp acosh(const SHEFp &a) { return a; }
-   - SHEFp asinh(const SHEFp &a) { return a; }
-   - SHEFp atanh(const SHEFp &a) { return a; }
-   - SHEFp erf(const SHEFp &a) { return a; }
-   - SHEFp erfc(const SHEFp &a) { return a; }
-   - SHEFp hypot(const SHEFp &a, const SHEFp &b) { return a; }
    - SHEFp j0(const SHEFp &a) { return a; }
    - SHEFp j1(const SHEFp &a) { return a; }
    - SHEFp jn(const SHEInt &n, const SHEFp &a) { return a; }
    - SHEFp lgamma(const SHEFp &a) { return a; }
    - //SHEFp nan(const char *) { return a; }
-   - SHEFp nextafter(const SHEFp &a, const SHEFp &b) { return a; }
-   - //SHEFp nexttoward(const SHEFp &, const SHEFp &) { return a; }
-   - SHEFp scalbn(const SHEFp &a, const SHEInt &b) { return a; }
    - SHEFp tgamma(const SHEFp &a) { return a; }
    - SHEFp y0(const SHEFp &a) { return a; }
    - SHEFp y1(const SHEFp &a) { return a; }
@@ -30,6 +21,7 @@
    - add intermediate tables to trig functions using the same method we used
      to improve log performance
    - put in polynomial based implementations for sqrt and cbrt.
+   - replace taylor polynomials with Chebychev polynomials.
    - create non-normalized versions of addition and multiplication for use
      in SHEMath.h, then normalize at the end.
    - Create 3, 4, 5, and 6 variable versions of needRecrypt, verifyArgs, and
@@ -38,7 +30,7 @@
 - Add Vector operations
    - use slots in SHEInt to intialize it with a vector.
    - disable packed recrypt when using vectors. (Question does the underlying
-     add/multiply use backed slots as well?)
+     binArithmn (in HElib) add/multiply use packed slots as well?)
    - export SHEInt as vectors.
    - Add vector support to SHEFp (same plan as SHEInt)
    - Add vector support to SHEString

@@ -18,22 +18,22 @@ void SHEMathSetLog(std::ostream &str)
 // copy sign without costing  any capacity!
 SHEFp copysign(const SHEFp &a, const SHEFp &b)
 {
-  SHEFp result(b);
-  result.setSign(a.getSign());
+  SHEFp result(a);
+  result.setSign(b.getSign());
   return result;
 }
 
 SHEFp copysign(shemaxfloat_t a, const SHEFp &b)
 {
-  SHEFp result(b);
-  result.setSign(SHEBool(b.getSign(),std::signbit(a)));
+  SHEFp result(b,a);
+  result.setSign(b.getSign());
   return result;
 }
 
 SHEFp copysign(const SHEFp &a, shemaxfloat_t b)
 {
   SHEFp result(a,b);
-  result.setSign(a.getSign());
+  result.setSign(SHEBool(a.getSign(),std::signbit(b)));
   return result;
 }
 
@@ -371,12 +371,12 @@ SHEFp sin(const SHEFp &a)
   return result;
 }
 
-SHEFp asin(const SHEFp &a) {
+SHEFp asinb(const SHEFp &a) {
   SHEFp theta(a);
   SHEFp result(theta,1.0);
   SHEFp x(theta);
   shemaxfloat_t coefficient = 1.0;
-  shemaxfloat_t term = .9;  // when to terminate the loop
+  shemaxfloat_t terminate = .9;  // when to terminate the loop
   shemaxfloat_t minfloat = a.getMin();
   result = x;
   if (sheMathLog)
@@ -385,7 +385,7 @@ SHEFp asin(const SHEFp &a) {
                   << coefficient << "*x=" << (SHEFpSummary) x
                   << " result=" <<(SHEFpSummary)result << std::endl;
   theta *= theta;
-  for (int i=3; i < SHEMATH_TRIG_LOOP_COUNT; i+=2) {
+  for (int i=3; i < SHEMATH_TRIG_LOOP_COUNT/2; i+=2) {
     // do the division unencrypted and them
     // multiply
     coefficient *= (double)(i-2)/(double)(i-1);
@@ -393,12 +393,12 @@ SHEFp asin(const SHEFp &a) {
     // this detects when it is no longer possible to add more
     // results based on the floating point percision for normal
     // valid inputs.
-    term  *= (double)(i-2)/(double)(i-1);
-    term *= .81;
+    terminate  *= (double)(i-2)/(double)(i-1);
+    terminate *= .81;
     // once coefficient goes to zero, we can't proceed further
-    if (term == 0.0 || term < minfloat) {
+    if (terminate == 0.0 || terminate < minfloat) {
       if (sheMathLog)
-        (*sheMathLog) << " step " << i << " : term=" << term
+        (*sheMathLog) << " step " << i << " : term=" << terminate
                       << " < " << minfloat << std::endl;
       break;
     }
@@ -412,6 +412,17 @@ SHEFp asin(const SHEFp &a) {
                     << "*x^" << i << "=" << (SHEFpSummary)term
                     << " result=" <<(SHEFpSummary)result << std::endl;
   }
+  return result;
+}
+
+SHEFp asin(const SHEFp &a)
+{
+  SHEFp result = asinb(a);
+  // the above is good except when a is close to 1.0, then we need
+  // the transform below
+  SHEFp transform=sqrt(1-a*a);
+  SHEFp resultHigh = M_PI_2 - asinb(transform);
+  result = select(a.abs() < M_SQRT1_2, copysign(resultHigh,a), result);
   // result is only valid for inputs between -1 and 1 inclusive
   result = select(a.abs() > 1.0, NAN, result);
   return result;
@@ -664,6 +675,12 @@ SHEFp tanh(const SHEFp &a)
   result = rev.select(-result, result);
   return result;
 }
+
+// last of the hyperbolic trig functions, use their
+// basic definitions for now..
+SHEFp acosh(const SHEFp &a) { return log(a+sqrt(a*a-1.0)); }
+SHEFp asinh(const SHEFp &a) { return log(a+sqrt(a*a+1.0)); }
+SHEFp atanh(const SHEFp &a) { return .5*log((a+1.0)/(1.0-a)); }
 
 // Power and logs....
 // exp with a power series
@@ -951,7 +968,7 @@ SHEFp expm1(const SHEFp &a) { return exp(a-1); }
 // get the exponent
 SHEFp logb(const SHEFp &a)
 {
-  SHEInt exp(a.getUnbiasedExp()); // fetch the unbiased Exp
+  SHEInt exp(a.getUnbiasedExp()-1); // fetch the unbiased Exp
   SHEFp result(exp); // turn it into a float
   // reset the size to the same size as 'a'
   result.reset(a.getExp().getSize(),a.getMantissa().getSize());
@@ -970,11 +987,15 @@ SHEFp pow(const SHEFp &a, const SHEFp &b)
   SHEFp result = exp(ln_a*b);
   result.setSign(odd && a.getSign());
   result = select(evenRoot && a.getSign(), NAN, result);
+  result = select(a.isZero(), 0.0, result);
   return result;
 }
 
 SHEFp pow(shemaxfloat_t a, const SHEFp &b)
 {
+  if (a == 0.0) {
+    return SHEFp(b,0.0);
+  }
   SHEBool odd = b.toSHEInt().getBit(0);
   SHEInt fract(b.fract().getMantissa());
   SHEBool hasFract=!fract.isZero();
@@ -990,6 +1011,9 @@ SHEFp pow(shemaxfloat_t a, const SHEFp &b)
 
 SHEFp pow(const SHEFp &a, shemaxfloat_t b)
 {
+  if (b == 0.0) {
+    return SHEFp(a,1.0);
+  }
   bool odd=((uint64_t)b)&1;
   // I could do a lot of manipulation of b to get it's
   // evenness status, but it's easier just to let the system
@@ -1000,6 +1024,7 @@ SHEFp pow(const SHEFp &a, shemaxfloat_t b)
   //sourt the sign
   result.setSign(a.getSign() && odd);
   result = select(evenRoot &a.getSign(), NAN, result);
+  result = select(a.isZero(), 0.0, result);
   return result;
 }
 
@@ -1016,7 +1041,8 @@ SHEFp cbrt(const SHEFp &a)
   return pow(a,(shemaxfloat_t)1.0/(shemaxfloat_t)3.0);
 }
 
-// integer and fraction operations
+// operate on floating point exponent and
+// mantissa.
 SHEFp frexp(const SHEFp &a, SHEInt &exp)
 {
   SHEFp result(a);
@@ -1028,14 +1054,14 @@ SHEFp frexp(const SHEFp &a, SHEInt &exp)
 SHEFp ldexp(const SHEFp &a, const SHEInt &n)
 {
   SHEFp result(a);
-  result.setUnbiasedExp(n);
+  result.setUnbiasedExp(n+1);
   return result;
 }
 
 SHEFp ldexp(const SHEFp &a, int64_t n)
 {
   SHEFp result(a);
-  result.setUnbiasedExp(n);
+  result.setUnbiasedExp(n+1);
   return result;
 }
 
@@ -1044,13 +1070,136 @@ SHEFp ldexp(shemaxfloat_t f, const SHEInt &n)
   // get an appropriately sized fp based on n
   // future, we can look at the precision of 'f'
   // to guess how bit an fp we need.
-  SHEFp a(n);
-  SHEFp result(a,f);
+  SHEFp result(n.getPublicKey(),f*2,n.getSize(),n.getSize()*3);
   result.setUnbiasedExp(n);
   return result;
 }
 
 
+SHEFp hypot(const SHEFp &a, const SHEFp &b) { return sqrt(a*a +b*b); }
+SHEFp hypot(shemaxfloat_t a, const SHEFp &b) { return sqrt(a*a +b*b); }
+SHEFp hypot(const SHEFp &a, shemaxfloat_t b) { return sqrt(a*a +b*b); }
+
+static uint64_t
+getExpMax(int expSize)
+{
+  return (1ULL<<(expSize-1))-1;
+}
+
+static int64_t
+getExpMin(int expSize)
+{
+  return -(int64_t)getExpMax(expSize);
+}
+
+SHEFp scalbn(const SHEFp &a, const SHEInt &b)
+{
+  int expSize = a.getExp().getSize();
+  SHEFp result(a);
+  SHEInt exp = a.getUnbiasedExp() + b;
+  SHEFpBool needNan = a.isNan();
+  SHEFpBool needInf = (exp > getExpMax(expSize)) || a.isInf();
+  SHEFpBool needZero= (exp <= getExpMin(expSize)) || a.isZero();
+  result.setUnbiasedExp(exp);
+  result = needNan.select(NAN, result);
+  result = needInf.select(INFINITY, result);
+  result = needZero.select(0.0, result);
+  // keep the sign
+  result.setSign(a.getSign());
+  return result;
+}
+
+SHEFp scalbn(const SHEFp &a, int64_t b)
+{
+  int expSize = a.getExp().getSize();
+  SHEFp result(a);
+  SHEInt exp = a.getUnbiasedExp() + b;
+  SHEFpBool needNan = a.isNan();
+  SHEFpBool needInf = (exp > getExpMax(expSize)) || a.isInf();
+  SHEFpBool needZero= (exp <= getExpMin(expSize)) || a.isZero();
+  result.setUnbiasedExp(exp);
+  result = needNan.select(NAN, result);
+  result = needInf.select(INFINITY, result);
+  result = needZero.select(0.0, result);
+  // keep the sign
+  result.setSign(a.getSign());
+  return result;
+}
+
+SHEFp scalbn(shemaxfloat_t a, const SHEInt &b)
+{
+  if (std::isnan(a) || std::isinf(a) || (a == 0.0)) {
+    return SHEFp(b.getPublicKey(), a, b.getSize(), b.getSize()*3);
+  }
+  // get an appropriately sized fp based on n
+  // future, we can look at the precision of 'f'
+  // to guess how bit an fp we need.
+  SHEFp result(b.getPublicKey(),a,b.getSize(),b.getSize()*3);
+  int expSize = result.getExp().getSize();
+  SHEInt exp = result.getUnbiasedExp() + b;
+  result.setUnbiasedExp(exp);
+  return result;
+}
+
+#ifdef SHEFP_USE_DOUBLE
+#define shemaxfloat_nextafter(x,y) nextafter(x,y)
+#define shemaxfloat_nextafter(x,y) nextafter(x,y)
+#else
+#define shemaxfloat_nextafter(x,y) nextafterl(x,y)
+#define shemaxfloat_nextafter(x,y) nextafterl(x,y)
+#endif
+
+SHEFp nextafter(const SHEFp &a, const SHEFp &b)
+{
+  SHEFp result(a);
+  SHEInt mantissa(a.getMantissa());
+  mantissa.reset(mantissa.getSize()+1, true);
+  mantissa.reset(mantissa.getSize(), false);
+  SHEInt addr(mantissa,(uint64_t)1);
+  addr = (a<b).select(-1,addr);
+  mantissa += addr;
+  SHEInt overflow = mantissa.getBitHigh(0);
+  mantissa = overflow.select(mantissa >> 1, mantissa);
+  mantissa.reset(mantissa.getSize()-1, true);
+  result.setMantissa(mantissa);
+  SHEInt exp=result.getUnbiasedExp() + overflow;
+  result.setUnbiasedExp(exp);
+  result.normalize(); //sigh
+  result = select(a == b, a, result);
+  return result;
+}
+
+SHEFp nextafter(const SHEFp &a, shemaxfloat_t b)
+{
+  SHEFp result(a);
+  SHEInt mantissa(a.getMantissa());
+  mantissa.reset(mantissa.getSize()+1, true);
+  mantissa.reset(mantissa.getSize(), false);
+  SHEInt addr(mantissa,(uint64_t)1);
+  addr = (a<b).select(-1,addr);
+  mantissa += addr;
+  SHEInt overflow = mantissa.getBitHigh(0);
+  mantissa = overflow.select(mantissa >> 1, mantissa);
+  mantissa.reset(mantissa.getSize()-1, true);
+  result.setMantissa(mantissa);
+  SHEInt exp=result.getUnbiasedExp() + overflow;
+  result.setUnbiasedExp(exp);
+  result.normalize(); //sigh
+  result = select(a == b, a, result);
+  return result;
+}
+
+SHEFp nextafter(shemaxfloat_t a, const SHEFp &b)
+{
+  SHEFp result(b,a);
+  // use the library.
+  result = select(a<b, shemaxfloat_nextafter(a, a+.01), result);
+  result = select(a>b, shemaxfloat_nextafter(a, a-.01), result);
+  result = select(b.isNan(), NAN, result);
+  return result;
+}
+
+// integer and fraction operations
 SHEFp modf(const SHEFp &a, SHEFp &b)
 {
   b = a.trunc();
@@ -1095,7 +1244,7 @@ SHEFp rint(const SHEFp &a)
 SHEFp nearbyint(const SHEFp &a) { return rint(a); }
 SHEInt lrint(const SHEFp &a) { return rint(a).toSHEInt(); }
 SHEInt lround(const SHEFp &a) { return round(a).toSHEInt(); }
-SHEInt ilogb(const SHEFp &a) { return a.getUnbiasedExp(); }
+SHEInt ilogb(const SHEFp &a) { return a.getUnbiasedExp()-1; }
 
 // remainder functions
 SHEFp fmod(const SHEFp &a, const SHEFp &b)
@@ -1138,6 +1287,9 @@ SHEFp remquo(const SHEFp &a, const SHEFp &b, SHEInt &q)
 {
   SHEFp n = round(a/b);
   q = n.toSHEInt(q.getSize());
+  std::cout << "remquo(" << (SHEFpSummary) a << "," << (SHEFpSummary) b
+            << ") => n=" << (SHEFpSummary) n << " q=" << (SHEIntSummary) q
+            << std::endl;
   return a-n*b;
 }
 
@@ -1156,23 +1308,52 @@ SHEFp remquo(const SHEFp &a, shemaxfloat_t b, SHEInt &q)
 }
 
 
-// these are not yet implemented
-SHEFp acosh(const SHEFp &a) { return a; }
-SHEFp asinh(const SHEFp &a) { return a; }
-SHEFp atanh(const SHEFp &a) { return a; }
 //
-SHEFp erf(const SHEFp &a) { return a; }
-SHEFp erfc(const SHEFp &a) { return a; }
-SHEFp hypot(const SHEFp &a, const SHEFp &b) { return a; }
+// these are not yet implemented
+SHEFp erf(const SHEFp &a)
+{
+  SHEFp result(a, 0.0);
+  SHEFp x(a, 0.0);
+  // note:Loop count must be even!
+  // Using Simson's rule: sn= delta_x/3*(f0 + 4f1 + 2f2 + 4f3 + 2f4 + 4f5 + f6)
+  SHEFp deltaX(a/SHEMATH_INTEGRAL_LOOP_COUNT);
+  SHEFp deltaX3(deltaX/3.0);
+  SHEFp deltaX4_3(4.0*deltaX/3.0);
+  SHEFp deltaX2_3(2.0*deltaX/3.0);
+  if (sheMathLog)
+    (*sheMathLog) << "erf(" << (SHEFpSummary) a << ")" << std::endl
+                  << "*setup : x="  << (SHEFpSummary) x
+                  << " deltaX=" << (SHEFpSummary) deltaX
+                  << " deltaX/3=" << (SHEFpSummary) deltaX3 << std::endl;
+  for (int i=0; i < SHEMATH_INTEGRAL_LOOP_COUNT; i++) {
+    // we multiply the coefficient to our constant 1
+    SHEFp f = exp(-x*x);    // = f(x)
+    if ((i==0) || i==(SHEMATH_INTEGRAL_LOOP_COUNT-1)) {
+      result += f*deltaX3;
+    } else if (i & 1) {
+      result += f*deltaX4_3;
+    } else {
+      result += deltaX2_3;
+    }
+     if (sheMathLog)
+        (*sheMathLog) << "*step " << i << " : x=" << (SHEFpSummary) x
+                      << " f(x)=" << (SHEFpSummary) f << " result="
+                      << (SHEFpSummary) result << std::endl;
+    x += deltaX;
+  }
+
+  // close to 1
+  return M_2_SQRTPI * result;
+}
+
+SHEFp erfc(const SHEFp &a) { return 1.0  - erf(a); }
+
+SHEFp lgamma(const SHEFp &a) { return a; }
+SHEFp tgamma(const SHEFp &a) { return a; }
 SHEFp j0(const SHEFp &a) { return a; }
 SHEFp j1(const SHEFp &a) { return a; }
 SHEFp jn(const SHEInt &n, const SHEFp &a) { return a; }
-SHEFp lgamma(const SHEFp &a) { return a; }
-//SHEFp nan(const char *) { return a; }
-SHEFp nextafter(const SHEFp &a, const SHEFp &b) { return a; }
-//SHEFp nexttoward(const SHEFp &, const SHEFp &) { return a; }
-SHEFp scalbn(const SHEFp &a, const SHEInt &b) { return a; }
-SHEFp tgamma(const SHEFp &a) { return a; }
 SHEFp y0(const SHEFp &a) { return a; }
 SHEFp y1(const SHEFp &a) { return a; }
 SHEFp yn(const SHEInt &n, const SHEFp &a) { return a; }
+//SHEFp nan(const char *) { return a; }

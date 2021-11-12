@@ -101,14 +101,14 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
    std::cout << "  >boostrap time: " << std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
-   r.reCrypt();
+   r.reCrypt(true);
    timer.stop();
    std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
    std::cout << "  >double boostrap time: " << std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
-   r.reCrypt(a);
+   r.reCrypt(a, true);
    timer.stop();
    std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;

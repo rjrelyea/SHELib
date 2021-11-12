@@ -117,7 +117,13 @@ SHEFp nearbyint(const SHEFp &);
 SHEFp nextafter(const SHEFp &, const SHEFp &);
 SHEFp nextafter(shemaxfloat_t, const SHEFp &);
 SHEFp nextafter(const SHEFp &, shemaxfloat_t);
-//SHEFp nexttoward(const SHEFp &, long const SHEFp &);
+// with SHEFp being general, these are identical to nextafter
+inline SHEFp nexttoward(const SHEFp & a, const SHEFp & b)
+{ return nextafter(a,b); }
+inline SHEFp nexttoward(shemaxfloat_t a, const SHEFp & b)
+{ return nextafter(a,b); }
+inline SHEFp nexttoward(const SHEFp & a, shemaxfloat_t b)
+{ return nextafter(a,b); }
 SHEFp pow(const SHEFp &, const SHEFp &);
 SHEFp pow(shemaxfloat_t, const SHEFp &);
 SHEFp pow(const SHEFp &, shemaxfloat_t);
