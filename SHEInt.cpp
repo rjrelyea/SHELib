@@ -4,7 +4,7 @@
 #include <iostream>
 #include "SHEInt.h"
 #include "SHEKey.h"
-#include "SHEio.h"
+#include "SHEUtil.h"
 #include "SHEMagic.h"
 #include <helib/helib.h>
 #include <helib/binaryArith.h>
@@ -304,10 +304,10 @@ void SHEInt::writeTo(std::ostream& str) const
 
 void SHEInt::writeToJSON(std::ostream& str) const
 {
-  helib::executeRedirectJsonError<void>([&]() { str << writeJSON(); });
+  helib::executeRedirectJsonError<void>([&]() { str << writeToJSON(); });
 }
 
-helib::JsonWrapper SHEInt::writeJSON(void) const
+helib::JsonWrapper SHEInt::writeToJSON(void) const
 {
   SHEInt target = *this;
   if (isExplicitZero) {

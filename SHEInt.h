@@ -96,7 +96,9 @@ private:
   SHEInt &rightShift(const SHEInt &shift, SHEInt &result) const;
   uint64_t decryptBit(const SHEPrivateKey &privKey, helib::Ctxt &ctxt) const;
   // setNextLabel lies about const since it's basically a caching function
-  const char *setNextLabel(void) const { uint64_t current=nextTmp++;
+  const char *setNextLabel(void) const
+  {
+    uint64_t current=nextTmp++;
     snprintf((char *)&labelBuf[0], sizeof(labelBuf), "t%d",current);
     labelHash[this]=labelBuf;
     return labelBuf;
@@ -114,7 +116,6 @@ private:
     recryptCounters.total++;
   }
 
-
 protected:
   SHEInt(const SHEPublicKey &pubkey, const unsigned char *encryptedInt,
          int size, const char *label=nullptr);
@@ -126,7 +127,7 @@ public:
    static constexpr std::string_view typeName = "SHEInt";
   ~SHEInt(void) { labelHash.erase(this); }
   // empty constructor for SHEInt with minimal values and size;
-  SHEInt(const SHEPublicKey &pubkey) :
+  explicit SHEInt(const SHEPublicKey &pubkey) :
          pubKey(&pubkey), isUnsigned(true),
          bitSize(0), isExplicitZero(true) { resetNative();}
   // basic constructor for custom SHEInt values;
@@ -307,9 +308,11 @@ public:
     return;
   }
   const char *getLabel(void) const
-  {const char *label = labelHash[this];
-   if (label) return label;
-   return setNextLabel(); }
+  {
+    const char *label = labelHash[this];
+    if (label) return label;
+    return setNextLabel();
+  }
   // switch size and signedness
   void reset(int newBitSize, bool newIsUnsigned);
   // get the decrypted result given the private key
@@ -343,13 +346,14 @@ public:
   // use helib standard intput, outputs methods
   void writeTo(std::ostream& str) const;
   void writeToJSON(std::ostream& str) const;
-  helib::JsonWrapper writeJSON(void) const;
+  helib::JsonWrapper writeToJSON(void) const;
   static SHEInt readFrom(std::istream& str, const SHEPublicKey &pubKey);
   static SHEInt readFromJSON(std::istream& str, const SHEPublicKey &pubKey);
   static SHEInt readFromJSON(const helib::JsonWrapper& j, const SHEPublicKey &pubKey);
   void read(std::istream& str);
   void readFromJSON(std::istream&str);
   void readFromJSON(const helib::JsonWrapper &jw);
+  void readJSON(const helib::JsonWrapper &jw) { readFromJSON(jw); }
 
   // give a simple import/export function as well
   unsigned char *flatten(int &size, bool ascii) const;
@@ -434,7 +438,7 @@ inline SHEInt getVector(const SHEInt &_default, const std::vector<uint64_t> &a,
 //
 // why macros instead of templates? because we can freely mix
 // constant values in that will select the appropriate select
-// function (SHEFp and float, SHEInt and ints
+// function (SHEFp and float, SHEInt and ints)
 #define SHEMAX(x,y) select((x)>(y), x, y)
 #define SHEMIN(x,y) select((x)<(y), x, y)
 // io operators. uses public functions, do no need a friend declaration
@@ -465,7 +469,7 @@ public:              \
             { resetNative(); } \
     name &operator=(type a) \
              { SHEInt a_(*this,(uint64_t)a); return *this=a_; } \
-    type decrypt(SHEPrivateKey &privKey)  \
+    type decrypt(const SHEPrivateKey &privKey)  const \
             { return (type) decryptRaw(privKey); }; \
 }; \
 //inline name operator[](const std::vector<type> &a, const SHEInt &index) { \

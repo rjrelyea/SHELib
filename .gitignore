@@ -11,4 +11,5 @@ SHEEval
 SHEPerf
 SHETest
 SHEMathTest
+SHEStringTest
 SHELib.pc

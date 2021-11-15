@@ -4,7 +4,7 @@
 //
 #include "SHEKey.h"
 #include "SHEMagic.h"
-#include "SHEio.h"
+#include "SHEUtil.h"
 #include "helibio.h"
 
 std::ostream *SHEPublicKey::log = nullptr;

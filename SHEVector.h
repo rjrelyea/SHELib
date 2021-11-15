@@ -8,7 +8,7 @@
 #include <iostream>
 #include <helib/helib.h>
 #include "SHEInt.h"
-#include "SHEio.h"
+#include "SHEUtil.h"
 #include "SHEMagic.h"
 #include "helibio.h"
 
@@ -22,7 +22,8 @@ class SHEVector : public std::vector<T>
 private:
   T model;
 public:
-  SHEVector(const SHEPublicKey &pubKey) : 
+  static constexpr std::string_view typeName = "SHEVector";
+  SHEVector(const SHEPublicKey &pubKey) :
              std::vector<T>(0,T(pubKey)), model(pubKey) { model.clear(); }
   SHEVector(const T &model_, const std::vector<T> &v) :
             std::vector<T>(v,model_), model(model_) { model.clear(); }
@@ -34,24 +35,36 @@ public:
   // because we don't know it. This will trigger errors in programs
   // the try to set arrays. To add an element @ location you need to
   // use assign. NOTE: the normal in operator[](int) is still valid
-  T operator[](const SHEInt &index) {
+  T operator[](const SHEInt &index) const {
     return this->at(index);
   }
   T &operator[](int i) {
     std::vector<T> &narrow= *this;
     return narrow[i];
   }
+  const T &operator[](int i) const {
+    const std::vector<T> &narrow= *this;
+    return narrow[i];
+  }
   // these functions to 'natural' bounds checking, in that we'll return
   // the value in the given slot, or an encrypted zero. Since the index and
   // the return value is encrypted, we don't know (only the user who later
-  // decrypts the result will know
-  T at(const SHEInt &index) {
+  // decrypts the result will know if we returned the zero.
+  T at(const SHEInt &index) const {
     T retVal(model);
-    std::vector<T> &narrow = *this;
+    const std::vector<T> &narrow = *this;
     for (int i=0; i < narrow.size(); i++) {
       retVal = select(i == index, narrow.at(i), retVal);
     }
     return retVal;
+  }
+  const T &at(size_t i) const {
+    const std::vector<T> &narrow = *this;
+    return narrow.at(i);
+  }
+  T &at(size_t i) {
+    std::vector<T> &narrow = *this;
+    return narrow.at(i);
   }
   // if index is out of range, this will return none
   void assign(const SHEInt &index, const T &value)
@@ -62,27 +75,59 @@ public:
     }
     return;
   }
-  // to decrypt, we would need to add the unencrypted type to the template
-  long bitCapacity(void) const {
+  void assign(size_t i, const T &value)
+  {
     std::vector<T> &narrow = *this;
+    narrow.assign(i, value);
+  }
+  // override the base class resize to pass the model
+  void resize(size_t n)
+  {
+    std::vector<T> &narrow = *this;
+    narrow.resize(n, model);
+  }
+  void resize(size_t n, const T &val)
+  {
+    std::vector<T> &narrow = *this;
+    narrow.resize(n, val);
+  }
+  
+  // to decrypt, we would need to add the unencrypted type to the template
+  long bitCapacity(void) const
+  {
+    const std::vector<T> &narrow = *this;
     long capacity = LONG_MAX;
     for (auto element : narrow) {
       capacity = std::min(capacity,element.bitCapacity());
     }
     return capacity;
   }
+  bool isCorrect(void) const
+  {
+    const std::vector<T> &narrow = *this;
+    for (auto element : narrow) {
+      if (!element.isCorrect()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   double securityLevel(void) const { return model.securityLevel(); }
-  bool needRecrypt(long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const {
-    std::vector<T> &narrow = *this;
+  bool needRecrypt(long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const
+  {
+    const std::vector<T> &narrow = *this;
     for (auto element : narrow) {
       if (element.needRecrypt(level)) return true;
     }
     return false;
   }
-  void verifyArgs(long level=SHEINT_DEFAULT_LEVEL_TRIGGER) {
+  void verifyArgs(long level=SHEINT_DEFAULT_LEVEL_TRIGGER)
+  {
     if (needRecrypt(level)) reCrypt();
   }
-  void reCrypt(void) {
+  void reCrypt(void)
+  {
     std::vector<T> &narrow = *this;
     for (int i=1; i < narrow.size(); i+=2) {
       narrow[i].reCrypt(narrow[i-1]);
@@ -93,7 +138,7 @@ public:
   }
   void writeTo(std::ostream& str) const
   {
-    std::vector<T> &narrow = *this;
+    const std::vector<T> &narrow = *this;
     write_raw_int(str, SHEVectorMagic); // magic to say we're a SHEVector
     write_raw_int(str, narrow.size());
     model.writeTo(str);
@@ -103,13 +148,13 @@ public:
   }
 
   void writeToJSON(std::ostream& str) const
-  { helib::executeRedirectJsonError<void>([&]() { str << writeJSON(); }); }
-  
-  helib::JsonWrapper writeJSON(void) const
-  { 
+  { helib::executeRedirectJsonError<void>([&]() { str << writeToJSON(); }); }
+
+  helib::JsonWrapper writeToJSON(void) const
+  {
     auto body = [*this]() {
-      std::vector<T> &narrow = *this;
-      json j = {{"model", this->model},
+      const std::vector<T> &narrow = *this;
+      json j = {{"model", helib::unwrap(this->model.writeToJSON())},
                 {"vector", helib::writeVectorToJSON(narrow)}};
       return helib::wrap(helib::toTypedJson<SHEVector<T>>(j));
     };
@@ -171,13 +216,14 @@ public:
     std::vector<T> &narrow = *this;
     auto body = [&]() {
       json j = helib::fromTypedJson<SHEVector<T>>(unwrap(jw));
-      this->model = j.at("model");
-      narrow = j.at("vector");
-      this->alloc = SHEInt8(this->eLen, 0);
+      this->model.readFromJSON(helib::wrap(j.at("model")));
+      helib::readVectorFromJSON(j.at("vector"), narrow, this->model);
     };
 
     helib::executeRedirectJsonError<void>(body);
   }
+
+  void readJSON(const helib::JsonWrapper &jw) { readFromJSON(jw); }
 
   // give a simple import/export function as well
   unsigned char *flatten(int &size, bool ascii) const

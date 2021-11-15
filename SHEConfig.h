@@ -34,7 +34,7 @@
 
 // use the CLZ builtin to figure out how many bits of we need to represent
 // and integer
-#define SHEFP_USE_CLZ_BUILTIN 1
+#define SHE_USE_CLZ_BUILTIN 1
 
 // subraction compare is slower, but single bit operation compare
 // uses more levels, and thus may take multiple bootstrapping operations.

@@ -90,10 +90,24 @@ public:
   // SHEInt->SHEFp casts
   SHEFp(const SHEInt &a, const char *label=nullptr);
   SHEFp(const SHEFp &model, const SHEInt &a, const char *label=nullptr);
-  // make this a function rather than a cast, because making
-  // a cast causes the compiler to choose the wrong select function
-  // for floating point selects.
-  SHEInt toSHEInt(int bitSize=0) const;
+  // this cast lets us set the Bit size we are casting to.
+  SHEInt toSHEInt(int bitSize=0, bool isUnsigned=false) const;
+  // Allow casting to SHEInt, but no implicit casts. Allowing explicit
+  // casts could cause issues with operator overloading of select, so
+  // SHEBool(x).select(SHEFp,SHEFp) would try to use
+  // SHEBool(x).select(SHEInt,SHEInt), producing the wrong result.
+  // with explicit the former will generate a compilier error, and the code
+  // could the be changes to use SHEFpBool(x).select or
+  // select(bool, SHEFp,SHEFp).
+  explicit operator SHEInt() { return toSHEInt(); }
+  explicit operator SHEInt64() { return toSHEInt(64); }
+  explicit operator SHEInt32() { return toSHEInt(32); }
+  explicit operator SHEInt16() { return toSHEInt(16); }
+  explicit operator SHEInt8() { return toSHEInt(8); }
+  explicit operator SHEUInt64() { return toSHEInt(64, true); }
+  explicit operator SHEUInt32() { return toSHEInt(32, true); }
+  explicit operator SHEUInt16() { return toSHEInt(16, true); }
+  explicit operator SHEUInt8() { return toSHEInt(8, true); }
   SHEFp &operator=(shemaxfloat_t val)
   { SHEFp a(*this, val);
     *this = a;
@@ -229,13 +243,14 @@ public:
   // use helib standard intput, outputs methods
   void writeTo(std::ostream& str) const;
   void writeToJSON(std::ostream& str) const;
-  helib::JsonWrapper writeJSON(void) const;
+  helib::JsonWrapper writeToJSON(void) const;
   static SHEFp readFrom(std::istream& str, const SHEPublicKey &pubKey);
   static SHEFp readFromJSON(std::istream& str, const SHEPublicKey &pubKey);
   static SHEFp readFromJSON(const helib::JsonWrapper& j, const SHEPublicKey &pubKey);
   void read(std::istream& str);
   void readFromJSON(std::istream&str);
   void readFromJSON(const helib::JsonWrapper &jw);
+  void readJSON(const helib::JsonWrapper &jw) { readFromJSON(jw); }
 
   // give a simple import/export function as well
   unsigned char *flatten(int &size, bool ascii) const;
@@ -354,7 +369,7 @@ public:              \
             { resetNative(); } \
     name &operator=(type a) \
              { SHEFp a_(*this,(shemaxfloat_t)a); return *this=a_; } \
-    type decrypt(SHEPrivateKey &privKey)  \
+    type decrypt(const SHEPrivateKey &privKey) const  \
             { return (type) decryptRaw(privKey); }; \
 }; \
 //inline name operator[](const std::vector<type> &a,  const SHEInt &index) \

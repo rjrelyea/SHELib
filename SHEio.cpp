@@ -2,7 +2,7 @@
 // the HE binio is private. fortunately we don't need abig library.
 //
 #include <iostream>
-#include "SHEio.h"
+#include "SHEUtil.h"
 
 void write_raw_int(std::ostream& str, long num)
 {

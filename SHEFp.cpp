@@ -5,7 +5,7 @@
 #include "SHEFp.h"
 #include "SHEInt.h"
 #include "SHEKey.h"
-#include "SHEio.h"
+#include "SHEUtil.h"
 #include "SHEMagic.h"
 #include <helib/helib.h>
 #include <helib/binaryArith.h>
@@ -16,18 +16,9 @@
 SHEPrivateKey *SHEFp::debugPrivKey = nullptr;
 #endif
 
-// should go into a private utils header
-//
-#ifdef SHEFP_USE_CLZ_BUILTIN
-static inline int log2i(int x) { return sizeof(int)*CHAR_BIT - __builtin_clz(x) -1; }
-#else
-static inline int log2i(int x) { int r = 1; while (x >>= 1) r++; return r;}
-#endif
-
 std::ostream *SHEFp::log = nullptr;
 uint64_t SHEFp::nextTmp = 0;
 SHEFpLabelHash SHEFp::labelHash;
-
 
 // special Exponent codings by size
 static inline uint64_t mkSpecialExp(int size)
@@ -175,7 +166,7 @@ SHEFp::SHEFp(const SHEFp &model, const SHEInt &a, const char *label)
 }
 
 // caste a Floating point value to a SHEInt
-SHEInt SHEFp::toSHEInt(int bitSize) const
+SHEInt SHEFp::toSHEInt(int bitSize, bool isUnsigned) const
 {
   SHEInt out(mantissa);
   SHEInt adjustedExp(exp);
@@ -189,10 +180,15 @@ SHEInt SHEFp::toSHEInt(int bitSize) const
   // NOTE: we need to balance the cost of doing a double
   // encrypted shift on bitSize sized ints versus not having
   // enough bits to properly represent the floating point value.
-  // (64 bit ints shifts are very expensive).
+  // (64 bit ints shifts are very expensive). If the caller
+  // didn't specify a bitsize, we just use the current mantissa
+  // size.
   out = out.leftShiftSigned(adjustedExp);
   out = max.select(intmax, out);
-  out = sign.select(-out, out);
+  if (!isUnsigned) {
+    out.reset(out.getSize(), false);
+    out = sign.select(-out, out);
+  }
   return out;
 }
 
@@ -453,15 +449,15 @@ void SHEFp::writeTo(std::ostream& str) const
 
 void SHEFp::writeToJSON(std::ostream& str) const
 {
-  helib::executeRedirectJsonError<void>([&]() { str << writeJSON(); });
+  helib::executeRedirectJsonError<void>([&]() { str << writeToJSON(); });
 }
 
-helib::JsonWrapper SHEFp::writeJSON(void) const
+helib::JsonWrapper SHEFp::writeToJSON(void) const
 {
   auto body = [this]() {
-    json j = { {"sign", helib::unwrap(this->sign.writeJSON())},
-              {"exp", helib::unwrap(this->exp.writeJSON())},
-              {"mantissa", helib::unwrap(this->mantissa.writeJSON())}};
+    json j = { {"sign", helib::unwrap(this->sign.writeToJSON())},
+              {"exp", helib::unwrap(this->exp.writeToJSON())},
+              {"mantissa", helib::unwrap(this->mantissa.writeToJSON())}};
 
     return helib::wrap(helib::toTypedJson<SHEFp>(j));
   };

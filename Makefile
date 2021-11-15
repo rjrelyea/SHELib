@@ -43,12 +43,10 @@ CPPFLAGS=-g -DHELIB_BOOT_THREADS -DHELIB_THREADS ${ISYSTEM} -std=c++17
 #LDFLAGS=-g -L ${HELIB_LIB} -lhelib -lntl -lgmp
 
 
-#OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o SHEFp.o SHEString.o SHEMath.o
-OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o SHEFp.o SHEMath.o
+OBJS=SHEio.o SHEContext.o SHEKey.o SHEInt.o SHEFp.o SHEString.o SHEMath.o
 LIB=libSHELib.a
-PROG=SHETest SHEPerf SHEEval SHEMathTest
-#INCLUDE=SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h SHEString.h SHEConfig.h helibio.h
-INCLUDE=SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h SHEConfig.h helibio.h
+PROG=SHETest SHEPerf SHEEval SHEMathTest SHEStringTest
+INCLUDE=SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEUtil.h SHEVector.h SHEFp.h SHEString.h SHEConfig.h helibio.h
 BUILD=SHELib.pc
 MANPAGES=SHELib.3
 HTMLPAGES=SHELib.html
@@ -108,6 +106,9 @@ SHEPerf: SHEPerf.o ${LIB}
 SHEEval: SHEEval.o ${LIB}
 	g++ -o $@ $< ${LIB} ${LDFLAGS}
 
+SHEStringTest: SHEStringTest.o ${LIB}
+	g++ -o $@ $< ${LIB} ${LDFLAGS}
+
 .cpp.o:
 	g++ -g -c -o $@ ${CPPFLAGS} $<
 
@@ -121,11 +122,14 @@ SHEEval: SHEEval.o ${LIB}
 	pandoc $< -t man -o $@
 
 SHEContext.o: SHEContext.h
-SHEMath.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEFp.h SHEConfig.h SHEMath.h
-SHEFp.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEFp.h SHEConfig.h
-SHEInt.o: SHEInt.h SHEKey.h SHEMagic.h SHEio.h SHEConfig.h
-SHEKey.o: SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEConfig.h
-SHEio.o: SHEio.h SHEConfig.h
-SHETest.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEVector.h SHEFp.h SHEConfig.h
-SHEPerf.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEConfig.h
-SHEEval.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEio.h SHEConfig.h
+SHEMath.o: SHEInt.h SHEKey.h SHEMagic.h SHEUtil.h SHEFp.h SHEConfig.h SHEMath.h
+SHEFp.o: SHEInt.h SHEKey.h SHEMagic.h SHEUtil.h SHEFp.h SHEConfig.h
+SHEInt.o: SHEInt.h SHEKey.h SHEMagic.h SHEUtil.h SHEConfig.h
+SHEKey.o: SHEKey.h SHEContext.h SHEMagic.h SHEUtil.h SHEConfig.h
+SHEio.o: SHEUtil.h SHEConfig.h
+SHEString.o: SHEInt.h SHEKey.h SHEMagic.h SHEVector.h SHEUtil.h SHEConfig.h
+SHETest.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEUtil.h SHEVector.h SHEFp.h SHEMath.h SHEConfig.h
+SHEPerf.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEUtil.h SHEConfig.h
+SHEEval.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEUtil.h SHEConfig.h
+SHEMathTest.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEUtil.h SHEConfig.h SHEFp.h SHEMath.h
+SHEStringTest.o: SHEInt.h SHEKey.h SHEContext.h SHEMagic.h SHEUtil.h SHEConfig.h SHEVector.h SHEString.h
