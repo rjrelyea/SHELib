@@ -17,6 +17,7 @@ typedef double shemaxfloat_t;
 #define shemaxfloat_pow(x,y) pow(x,y)
 #define shemaxfloat_abs(x) fabs(x)
 #define shemaxfloat_log(x) log(x)
+#define shemaxfloat_sin(x) sin(x)
 #define SHEFP_SNAN SNAN
 #define SHEFP_USE_DOUBLE 1
 #undef SHEFP_USE_LONG_DOUBLE
@@ -26,6 +27,7 @@ typedef long double shemaxfloat_t;
 #define shemaxfloat_pow(x,y) powl(x,y)
 #define shemaxfloat_abs(x) fabsl(x)
 #define shemaxfloat_log(x) logl(x)
+#define shemaxfloat_sin(x) sinl(x)
 #define SHEFP_SNAN SNANL
 #define SHEFP_USE_LONG_DOUBLE 1
 #undef SHEFP_USE_DOUBLE

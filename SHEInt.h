@@ -8,6 +8,7 @@
 #include <helib/helib.h>
 #include "SHEKey.h"
 #include "SHEConfig.h"
+#include "SHEUtil.h"
 
 typedef struct  {
   uint64_t doubleRecrypt;
@@ -341,6 +342,7 @@ public:
     { debugPrivKey = &privKey; }
 #endif
   static void setLog(std::ostream &str) { log = &str; }
+  static size_t getBitSize(size_t len) { return log2i(len)+1; }
 
   // input/output functions
   // use helib standard intput, outputs methods

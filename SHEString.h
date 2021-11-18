@@ -33,7 +33,6 @@ private:
   SHEUInt8   eLen;
   bool       hasEncryptedLength;
   char labelBuf[SHEINT_MAX_LABEL_SIZE];
-  static size_t getBestSize(size_t len) { return log2i(len)+1; }
   void encryptLengthReset(const SHEInt &len)
   {
     if (hasFixedSize) {
@@ -158,7 +157,7 @@ public:
     size_t len = string.size();
     SHEInt neLen(model, (uint64_t)0);
     if (len > maxEncryptStringSize) {
-      neLen.reset(getBestSize(len), true);
+      neLen.reset(SHEInt::getBitSize(len), true);
     }
     neLen = len;
     return neLen;

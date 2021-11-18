@@ -1074,24 +1074,13 @@ SHEFp select(const SHEInt &sel, shemaxfloat_t a_true,
   return result;
 }
 
-inline static int getBitSize(int64_t a)
-{
-  int i;
-  int64_t topBit = a&(1ULL<<63);
-  for(i=62; i > 4; i--) {
-    if (topBit != a&(1ULL<<i)) {
-      return i+2;
-    }
-  }
-  return 5; // encode at least 5 bits;
-}
-
 static inline int getExpBitSize(shemaxfloat_t d)
 {
     int exp;
     if (!std::isfinite(d)) { return 5;} // something minimal
     (void) shemaxfloat_frexp(d,&exp);
-    return getBitSize(exp);
+    int size = SHEInt::getBitSize(exp);
+    return std::max(5,size);
 }
 
 // we probably should pick Mantissa from the precision of

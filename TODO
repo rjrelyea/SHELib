@@ -3,15 +3,7 @@
    - test all the operator x= cases.
    - test all string combinations
 - Add missing math.h functions (see SHEMath.cpp).
-   - SHEFp j0(const SHEFp &a) { return a; }
-   - SHEFp j1(const SHEFp &a) { return a; }
-   - SHEFp jn(const SHEInt &n, const SHEFp &a) { return a; }
-   - SHEFp lgamma(const SHEFp &a) { return a; }
    - //SHEFp nan(const char *) { return a; }
-   - SHEFp tgamma(const SHEFp &a) { return a; }
-   - SHEFp y0(const SHEFp &a) { return a; }
-   - SHEFp y1(const SHEFp &a) { return a; }
-   - SHEFp yn(const SHEInt &n, const SHEFp &a) { return a; }
 - Add Unordered_map:
   - a version that stores the components unencrypted, but are retrieved
     encrypted.
@@ -21,13 +13,16 @@
      tracking nan and inf status with separate bools.
    - add intermediate tables to trig functions using the same method we used
      to improve log performance
-   - put in polynomial based implementations for sqrt and cbrt.
+   - better initial value for newton's methond for sqrt and cbrt.
+   - replace simpson's integrals with better transcendentals (erf, erfc,
+     tgamma, lgamma, jn, yn).
    - replace taylor polynomials with Chebychev polynomials.
    - create non-normalized versions of addition and multiplication for use
      in SHEMath.h, then normalize at the end.
    - Create 3, 4, 5, and 6 variable versions of needRecrypt, verifyArgs, and
      reCrypt.
-   - handle more unencrypted length cases in SHEString.cpp
+   - handle more unencrypted length/pos cases in SHEString.cpp rather than
+     punting and encrypting those length/pos values.
    - can we speed up udiv?
 - Add Vector operations
    - use slots in SHEInt to intialize it with a vector.

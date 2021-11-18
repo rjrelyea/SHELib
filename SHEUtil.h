@@ -1,7 +1,7 @@
 //
 // Common utility functions used in other headers
 //
-#ifndef SHEUtil_H
+#ifndef SHEUtil_H_
 #define SHEUtil_H_ 1
 
 #include "SHEConfig.h"
@@ -17,8 +17,6 @@ static inline int log2i(int x) { int r = 1; while (x >>= 1) r++; return r;}
 
 void write_raw_int(std::ostream& str, long num);
 long read_raw_int(std::istream& str);
-
-
 
 #endif
 

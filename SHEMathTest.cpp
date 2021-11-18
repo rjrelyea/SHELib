@@ -198,7 +198,6 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST(efr[0], fr[0], efr[0] = acos(efa))
   RUN_TEST(efr[1], fr[1], efr[1] = acosh(efa))
   RUN_TEST(efr[2], fr[2], efr[2] = asin(efa))
-#ifdef notdefdd
   RUN_TEST(efr[3], fr[3], efr[3] = asinh(efa))
   RUN_TEST(efr[4], fr[4], efr[4] = atan(efa))
   RUN_TEST(efr[5], fr[5], efr[5] = atan2(efa, efb))
@@ -225,23 +224,18 @@ do_tests(const SHEPublicKey &pubkey, SHEPrivateKey &privkey,
   RUN_TEST(efr[26], fr[26], efr[26] = j0(efa))
   RUN_TEST(efr[27], fr[27], efr[27] = j1(efa))
   RUN_TEST(efr[28], fr[28], efr[28] = jn(ea, efa))
-#endif
   RUN_TEST(efr[29], fr[29], efr[29] = ldexp(efa, ea))
-#ifdef notdef
   RUN_TEST(efr[30], fr[30], efr[30] = lgamma(efa))
   RUN_TEST(efr[31], fr[31], efr[31] = log(efa))
   RUN_TEST(efr[32], fr[32], efr[32] = log10(efa))
   RUN_TEST(efr[33], fr[33], efr[33] = log1p(efa))
   RUN_TEST(efr[34], fr[34], efr[34] = log2(efa))
-#endif
   RUN_TEST(efr[35], fr[35], efr[35] = logb(efa))
-#ifdef notdef
   RUN_TEST(efr[36], fr[36], efr[36] = modf(efa, efr[56]))
   RUN_TEST(efr[37], fr[37], efr[37] = nearbyint(efa))
   RUN_TEST(efr[38], fr[38], efr[38] = nextafter(efa, efb))
   RUN_TEST(efr[39], fr[39], efr[39] = nexttoward(efa, efb))
   RUN_TEST(efr[40], fr[40], efr[40] = pow(efa, efb))
-#endif
   RUN_TEST(efr[41], fr[41], efr[41] = remainder(efa, efb))
   RUN_TEST(efr[42], fr[42], efr[42] = remquo(efa, efb, er[14]))
   RUN_TEST(efr[43], fr[43], efr[43] = rint(efa))

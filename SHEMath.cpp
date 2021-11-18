@@ -72,15 +72,10 @@ static SHEFp trigReduce(const SHEFp &a, SHEInt &q)
 
   SHEFp n=aabs;
   n /= M_PI_2;
-  std::cout << "  +aabs div pi/2=" << (SHEFpSummary) n << std::endl;
   // we should pass a bitSize to toSHEInt based on our SHEFp size?
   q=n.toSHEInt();
   q.reset(2,true);
-  std::cout << " q=" << (SHEIntSummary) q << std::endl;
   aabs = n.fract() * M_PI_2;
-  std::cout << "  +aabs reduced=" << (SHEFpSummary) aabs
-            << "--a.abs()=" << (SHEFpSummary) a.abs()
-            << std::endl;
   q = sign.select(3-q,q);
   if (sheMathLog)
    (*sheMathLog) << "  +aabs reset=" << (SHEFpSummary) aabs << " q="
@@ -183,12 +178,7 @@ SHEFp cos(const SHEFp &a)
   rev.reset(1,true);
   theta = rev.select(M_PI_2-theta,theta);
   SHEFp result = cosb(theta);
-  // switch(q)
-  std::cout << "cos qin=" << (SHEIntSummary) q
-            << " q.bit[0]=" << (SHEIntSummary) q.getBitHigh(0)
-            << " q.bit[1]=" << (SHEIntSummary) q.getBitHigh(1) ;
   q = q.getBitHigh(0) ^ q.getBitHigh(1);
-  std::cout << " qout=" << (SHEIntSummary) q << std::endl;
   result = SHEFpBool(q).select(-result,result);
   return result;
 }
@@ -204,12 +194,7 @@ SHEFp cosh(const SHEFp &a)
   rev.reset(1,true);
   theta = rev.select(M_PI_2-theta,theta);
   SHEFp result = coshb(theta);
-  // switch(q)
-  std::cout << "cosh qin=" << (SHEIntSummary) q
-            << " q.bit[0]=" << (SHEIntSummary) q.getBitHigh(0)
-            << " q.bit[1]=" << (SHEIntSummary) q.getBitHigh(1) ;
   q = q.getBitHigh(0) ^ q.getBitHigh(1);
-  std::cout << " qout=" << (SHEIntSummary) q << std::endl;
   result = SHEFpBool(q).select(-result,result);
   return result;
 }
@@ -380,12 +365,12 @@ SHEFp asinb(const SHEFp &a) {
   shemaxfloat_t minfloat = a.getMin();
   result = x;
   if (sheMathLog)
-    (*sheMathLog) << "asin(" << (SHEFpSummary)a << ") = " << std::endl
+    (*sheMathLog) << "asin(" << (SHEFpSummary)a << ") =" << std::endl
                   << " step 1 : x=" << (SHEFpSummary) x << " +"
                   << coefficient << "*x=" << (SHEFpSummary) x
                   << " result=" <<(SHEFpSummary)result << std::endl;
   theta *= theta;
-  for (int i=3; i < SHEMATH_TRIG_LOOP_COUNT/2; i+=2) {
+  for (int i=3; i < SHEMATH_ARC_LOOP_COUNT; i+=2) {
     // do the division unencrypted and them
     // multiply
     coefficient *= (double)(i-2)/(double)(i-1);
@@ -422,7 +407,7 @@ SHEFp asin(const SHEFp &a)
   // the transform below
   SHEFp transform=sqrt(1-a*a);
   SHEFp resultHigh = M_PI_2 - asinb(transform);
-  result = select(a.abs() < M_SQRT1_2, copysign(resultHigh,a), result);
+  result = select(a.abs() > M_SQRT1_2, copysign(resultHigh,a), result);
   // result is only valid for inputs between -1 and 1 inclusive
   result = select(a.abs() > 1.0, NAN, result);
   return result;
@@ -597,8 +582,6 @@ SHEFp tan(const SHEFp &a)
   rev.reset(1,true);
   theta = rev.select(M_PI_2-theta,theta);
   SHEFp result = tanb(theta);
-  std::cout << "tan rev=" << (SHEIntSummary) rev << " q=" <<(SHEIntSummary)q
-            << std::endl;
   result = rev.select(-result, result);
   return result;
 }
@@ -670,8 +653,6 @@ SHEFp tanh(const SHEFp &a)
   rev.reset(1,true);
   theta = rev.select(M_PI_2-theta,theta);
   SHEFp result = tanhb(theta);
-  std::cout << "tanh rev=" << (SHEIntSummary) rev << " q=" <<(SHEIntSummary)q
-            << std::endl;
   result = rev.select(-result, result);
   return result;
 }
@@ -875,7 +856,6 @@ static SHEFp _log(const SHEFp &a, SHEFp &log1p_)
   //                  = ln + log1p(fract*inv)
   log1p_ = _log1p(fract*inv);
   SHEFp result = ln + log1p_;
-  std::cout << " ln result=" << (SHEFpSummary)result << std::endl;
   return result;
 }
 
@@ -893,15 +873,11 @@ SHEFp log(const SHEFp &a)
   SHEFpBool needInf(a.isInf());
   // the exponent gives us the large portion of the log
   // already... exponent = floor(log2(a));
-  std::cout << "log(" << (SHEFpSummary)a << ")" << std::endl;
   SHEInt exp(a.getUnbiasedExp());
   SHEFp result(a,exp);
   SHEFp log1p_(a,0.0);
-  std::cout << " a.unbiasedExp=" << (SHEIntSummary)a.getUnbiasedExp()  << std::endl;
-  std::cout << " log2()=" << (SHEFpSummary)result  << std::endl;
   //convert log2(a) to log_e
   result *= M_LN2;
-  std::cout << " ln()=" << (SHEFpSummary)result  << std::endl;
   SHEFp a_(a);
   // now get the log of just the mantissa
   a_.setUnbiasedExp(0);
@@ -912,10 +888,8 @@ SHEFp log(const SHEFp &a)
   result += _log(a_,log1p_);
   // get better precision if our exponent == 1.
   result = select(exp == 1, log1p_, result);
-  std::cout << " log()=" << (SHEFpSummary)result  << std::endl;
   result = needInf.select(INFINITY, result);
   result = needNan.select(NAN, result);
-  std::cout << " post non/inf log()=" << (SHEFpSummary)result  << std::endl;
   return result;
 }
 
@@ -976,6 +950,8 @@ SHEFp logb(const SHEFp &a)
 }
 
 // use exp and log to calculate power (probably a faster way of doing this?)
+// like power ladders used in modular exp functions (at lest for the integer
+// portion of b. But then we still need logs for the fractional portion
 SHEFp pow(const SHEFp &a, const SHEFp &b)
 {
   SHEBool odd = b.toSHEInt().getBit(0);
@@ -1021,24 +997,66 @@ SHEFp pow(const SHEFp &a, shemaxfloat_t b)
   bool evenRoot=std::isnan(shemaxfloat_pow(-1.0,b));
   SHEFp ln_a = log(a.abs());
   SHEFp result = exp(ln_a*b);
-  //sourt the sign
+  //sort the sign
   result.setSign(a.getSign() && odd);
   result = select(evenRoot &a.getSign(), NAN, result);
   result = select(a.isZero(), 0.0, result);
   return result;
 }
 
-// there is definately faster ways of doing sqrt, but
-// This way has the advantage to knowning when to exit a loop
+// there is definately faster ways of doing sqrt,
+// use Newton's to calculate sqrt
 SHEFp sqrt(const SHEFp &a)
 {
-  return pow(a,.5);
+  SHEFp y(a);
+  SHEInt exp = y.getUnbiasedExp();
+  exp >>= 1;
+  y.setUnbiasedExp(exp);
+  y *= .5;
+  if (sheMathLog)
+    (*sheMathLog) << "sqrt(" << (SHEFpSummary)a << ") = " << std::endl
+                  << " step 0 : y0=" << (SHEFpSummary) y
+                  << std::endl;
+  for (int i=0; i < SHEMATH_NEWTON_LOOP_COUNT; i++) {
+    // newton's for 1/sqrt. we calculate 1/sqrt because it doesn't
+    // require multiple divisions in the loop, and only one division
+    // at the end.
+    y=.5*y*(3.0-a*y*y);
+    if (sheMathLog) (*sheMathLog) << " step " << (i+1) << ": y" << (i+1) << "="
+                                  << (SHEFpSummary) y << std::endl;
+  }
+  y = 1.0/y;
+  y = select(a.isInf(), INFINITY, y);
+  y = select(a.getSign(), NAN, y);
+  y = select(a.isZero(), 0.0, y);
+  return y;
 }
 
 // see comment for sqrt
 SHEFp cbrt(const SHEFp &a)
 {
-  return pow(a,(shemaxfloat_t)1.0/(shemaxfloat_t)3.0);
+  SHEFp y(a.abs());
+  SHEInt exp = y.getUnbiasedExp();
+  exp = exp/3;
+  y.setUnbiasedExp(exp);
+  y *= (1.0/3.0);
+  if (sheMathLog)
+    (*sheMathLog) << "cqrt(" << (SHEFpSummary)a << ") = " << std::endl
+                  << " step 0 : y0=" << (SHEFpSummary) y
+                  << std::endl;
+  for (int i=0; i < SHEMATH_NEWTON_LOOP_COUNT; i++) {
+    // newton's for 1/cbrt. we calculate 1/cbrt because it doesn't
+    // require multiple divisions in the loop, and only one division
+    // at the end.
+    y=(1.0/3.0)*y*(4.0-a*y*y*y);
+    if (sheMathLog) (*sheMathLog) << " step " << (i+1) << ": y" << (i+1) << "="
+                                  << (SHEFpSummary) y << std::endl;
+  }
+  y = 1.0/y;
+  y = select(a.isInf(), INFINITY, y);
+  y = select(a.getSign(), NAN, y);
+  y = select(a.isZero(), 0.0, y);
+  return y;
 }
 
 // operate on floating point exponent and
@@ -1209,23 +1227,13 @@ SHEFp modf(const SHEFp &a, SHEFp &b)
 SHEFp trunc(const SHEFp &a) { return a.trunc(); }
 SHEFp ceil(const SHEFp &a)
 {
-  std::cout << "ceil(" << (SHEFpSummary) a << ")";
   SHEFp result(a.trunc());
-  std::cout << " a.trunc()=" <<(SHEFpSummary) result;
-  std::cout << " a.hasFract()=" <<(SHEIntSummary) a.hasFract();
-  std::cout << " a.getSign()=" <<(SHEIntSummary) a.getSign();
-  std::cout << std::endl;
   return select(!a.getSign() && a.hasFract(), result+1.0, result);
 }
 
 SHEFp floor(const SHEFp &a)
 {
-  std::cout << "floor(" << (SHEFpSummary) a << ")";
   SHEFp result(a.trunc());
-  std::cout << " a.trunc()=" <<(SHEFpSummary) result;
-  std::cout << " a.hasFract()=" <<(SHEIntSummary) a.hasFract();
-  std::cout << " a.getSign()=" <<(SHEIntSummary) a.getSign();
-  std::cout << std::endl;
   return select(a.getSign() && a.hasFract(), result-1.0, result);
 }
 
@@ -1287,9 +1295,6 @@ SHEFp remquo(const SHEFp &a, const SHEFp &b, SHEInt &q)
 {
   SHEFp n = round(a/b);
   q = n.toSHEInt(q.getSize());
-  std::cout << "remquo(" << (SHEFpSummary) a << "," << (SHEFpSummary) b
-            << ") => n=" << (SHEFpSummary) n << " q=" << (SHEIntSummary) q
-            << std::endl;
   return a-n*b;
 }
 
@@ -1307,7 +1312,6 @@ SHEFp remquo(const SHEFp &a, shemaxfloat_t b, SHEInt &q)
   return a-n*b;
 }
 
-
 //
 // these are not yet implemented
 SHEFp erf(const SHEFp &a)
@@ -1316,10 +1320,10 @@ SHEFp erf(const SHEFp &a)
   SHEFp x(a, 0.0);
   // note:Loop count must be even!
   // Using Simson's rule: sn= delta_x/3*(f0 + 4f1 + 2f2 + 4f3 + 2f4 + 4f5 + f6)
-  SHEFp deltaX(a/SHEMATH_INTEGRAL_LOOP_COUNT);
+  SHEFp deltaX(a/(SHEMATH_INTEGRAL_LOOP_COUNT-1));
   SHEFp deltaX3(deltaX/3.0);
-  SHEFp deltaX4_3(4.0*deltaX/3.0);
-  SHEFp deltaX2_3(2.0*deltaX/3.0);
+  SHEFp deltaX4_3((4.0/3.0)*deltaX);
+  SHEFp deltaX2_3((2.0/3.0)*deltaX);
   if (sheMathLog)
     (*sheMathLog) << "erf(" << (SHEFpSummary) a << ")" << std::endl
                   << "*setup : x="  << (SHEFpSummary) x
@@ -1333,7 +1337,7 @@ SHEFp erf(const SHEFp &a)
     } else if (i & 1) {
       result += f*deltaX4_3;
     } else {
-      result += deltaX2_3;
+      result += f*deltaX2_3;
     }
      if (sheMathLog)
         (*sheMathLog) << "*step " << i << " : x=" << (SHEFpSummary) x
@@ -1348,12 +1352,236 @@ SHEFp erf(const SHEFp &a)
 
 SHEFp erfc(const SHEFp &a) { return 1.0  - erf(a); }
 
-SHEFp lgamma(const SHEFp &a) { return a; }
-SHEFp tgamma(const SHEFp &a) { return a; }
-SHEFp j0(const SHEFp &a) { return a; }
-SHEFp j1(const SHEFp &a) { return a; }
-SHEFp jn(const SHEInt &n, const SHEFp &a) { return a; }
-SHEFp y0(const SHEFp &a) { return a; }
-SHEFp y1(const SHEFp &a) { return a; }
-SHEFp yn(const SHEInt &n, const SHEFp &a) { return a; }
+SHEFp j0(const SHEFp &a)
+{
+  SHEFp term(a,1.0);
+  SHEFp x(a.abs());
+  SHEFp x2=x*x;
+  // result is good for x < 1.0
+  SHEFp result(a,1.0);
+  for (int i=1; i < SHEMATH_BESSEL_LOOP_COUNT; i++) {
+    term*=1.0/((double)(4*i*i))*x2; // (1/(2^2i(i!)^2)) * x^2i
+    if (i&1) {
+      result -= term;
+    } else {
+      result += term;
+    }
+  }
+  // result2 is good for x >= 1.0
+  SHEFp result2(1.0/sqrt(x));
+  result2 *= cos(x-M_PI_4);
+  result2 *= M_2_SQRTPI;
+  result=select(x<1.0, result, result2);
+  copysign(result, a);
+  return result;
+}
+
+SHEFp y0(const SHEFp &a)
+{
+  SHEFp jterm(a,1.0);
+  SHEFp x(a.abs());
+  SHEFp x2=x*x;
+  SHEFp j0_const=.5772+log(.5*a);// need a more precise gamma
+  double Hi=0.0;
+  // result is good for x < 1.0
+  SHEFp result(j0_const);
+  for (int i=1; i < SHEMATH_BESSEL_LOOP_COUNT; i++) {
+    jterm*=1.0/((double)(4*i*i))*x2; // (1/(2^2i(i!)^2)) * x^2i
+    Hi += 1.0/(double)i;
+    SHEFp term = jterm *(j0_const-Hi);
+    if (i&1) {
+      result -= term;
+    } else {
+      result += term;
+    }
+  }
+  // result2 is good for x >= 1.0
+  SHEFp result2(1.0/sqrt(x));
+  result2 *= sin(x-M_PI_4);
+  result2 *= M_2_SQRTPI;
+  result=select(x<1.0, result, result2);
+  copysign(result, a);
+  return result;
+}
+
+SHEFp tgamma(const SHEFp &a)
+{
+  SHEFp result(a, 0.0);
+  SHEFp t(a, 0.0);
+  SHEFp x(a-1.0);
+  // note:Loop count must be even!
+  // Using Simson's rule: sn= delta_x/3*(f0 + 4f1 + 2f2 + 4f3 + 2f4 + 4f5 + f6)
+  shemaxfloat_t minfloat = a.getMin();
+  // The integral is from '0' to infinity, which is really from 0 until f goes
+  // to zero. This is dominated by exp(-t), but allow t^x. A better gues would
+  // be to divide log(minfloat) by -x
+  shemaxfloat_t deltaT = (log(minfloat)/-6.0)/(SHEMATH_INTEGRAL_LOOP_COUNT-1);
+  shemaxfloat_t  deltaT3 = deltaT/3.0;
+  shemaxfloat_t deltaT4_3 = (4.0/3.0)*deltaT;
+  shemaxfloat_t  deltaT2_3 = (2.0/3.0)*deltaT;
+  if (sheMathLog)
+    (*sheMathLog) << "gamma(" << (SHEFpSummary) a << ")" << std::endl
+                  << "*setup : t="  << (SHEFpSummary) t
+                  << " x="  << (SHEFpSummary) x
+                  << " deltaT=" << deltaT << std::endl;
+  t = deltaT; // since the first term is zero, we can skip the calculation
+  for (int i=1; i < SHEMATH_INTEGRAL_LOOP_COUNT; i++) {
+    // we multiply the coefficient to our constant 1
+    SHEFp tp = pow(t,x);
+    SHEFp ep = exp(-t);
+    SHEFp f = tp*ep;    // = f(t)
+    // first and last terms multiply by deltaT/3.0
+    // second, second to last terms, and alternating terms
+    //   multiply by 4*deltaT/3.0
+    // middle terms multiply by 2*deltaT/3.0, Loop_count needs
+    // to be odd and >= 3.
+    if ((i==0) || i==(SHEMATH_INTEGRAL_LOOP_COUNT-1)) {
+      result += f*deltaT3;
+    } else if (i & 1) {
+      result += f*deltaT4_3;
+    } else {
+      result += f*deltaT2_3;
+    }
+     if (sheMathLog)
+        (*sheMathLog) << "*step " << i << " : t=" << (SHEFpSummary) t
+                      << " f(t)=" << (SHEFpSummary) f << " result="
+                      << (SHEFpSummary) result << std::endl;
+    x += deltaT;
+  }
+
+  return result;
+}
+
+// There are better ways of doing this, but at least this 'works'
+SHEFp lgamma_r(const SHEFp &a, SHEInt &signp)
+{
+  SHEFp gamma=tgamma(a);
+  SHEInt8 signOut(a.getExp(), 1);
+  // ideally we should just return gamma.getSign(), but this emulates
+  // the real math.h semantics of -1 = negative and 1 = positive or zero
+  signp = (gamma.getSign() && !gamma.isZero()).select(-1, signOut);
+  return log(gamma.abs());
+}
+
+
+SHEFp lgamma(const SHEFp &a)
+{
+  SHEFp gamma=tgamma(a);
+  // the normal library returns signp in a global
+  // That's not safe at all in our library since
+  // we need a public key to initialize the global
+  // and there isn't necessarily one available. apps
+  // that need sign can call lgamma_r.
+  return log(gamma.abs());
+}
+
+// obviously there's a better way than this.
+SHEFp j1(const SHEFp &a) { return jn(1,a); }
+
+// these next two can do better by copying the jn function and
+// allowing more unencrypted operations before we drop into
+// encrypted operations, getting some performance without
+// suffering precision loss
+SHEFp jn(uint64_t n, const SHEFp &a)
+{
+  SHEInt ni(a.getSign().getPublicKey(), n, SHEInt::getBitSize(n), false);
+  return jn(ni, a);
+}
+
+SHEFp jn(const SHEInt &n, shemaxfloat_t a)
+{
+  return jn(n, SHEFp(n.getPublicKey(),a));
+}
+
+SHEFp jn(const SHEInt &n, const SHEFp &a)
+{
+  SHEFp result(a, 0.0);
+  SHEFp nf(a,n);
+  shemaxfloat_t x=0.0;
+  // note:Loop count must be even!
+  // Using Simson's rule: sn= delta_x/3*(f0 + 4f1 + 2f2 + 4f3 + 2f4 + 4f5 + f6)
+  shemaxfloat_t deltaX = M_PI/(SHEMATH_INTEGRAL_LOOP_COUNT-1);
+  shemaxfloat_t deltaX3 = deltaX/3.0;
+  shemaxfloat_t deltaX4_3 = (4.0/3.0)*deltaX;
+  shemaxfloat_t deltaX2_3 = (2.0/3.0)*deltaX;
+  if (sheMathLog)
+    (*sheMathLog) << "jn(" << (SHEFpSummary) a << ")" << std::endl
+                  << "*setup : x="  << x
+                  << " deltaX=" << deltaX
+                  << " deltaX/3=" << deltaX3 << std::endl;
+  for (int i=0; i < SHEMATH_INTEGRAL_LOOP_COUNT; i++) {
+    // we multiply the coefficient to our constant 1
+    SHEFp f = cos(nf*x) - a*shemaxfloat_sin(x);    // = f(x)
+    if ((i==0) || i==(SHEMATH_INTEGRAL_LOOP_COUNT-1)) {
+      result += f*deltaX3;
+    } else if (i & 1) {
+      result += f*deltaX4_3;
+    } else {
+      result += f*deltaX2_3;
+    }
+     if (sheMathLog)
+        (*sheMathLog) << "*step " << i << " : x=" << x
+                      << " f(x)=" << (SHEFpSummary) f << " result="
+                      << (SHEFpSummary) result << std::endl;
+    x += deltaX;
+  }
+
+  // close to 1
+  return M_1_PI * result;
+}
+
+// obviously there's a better way than this.
+SHEFp y1(const SHEFp &a) { return yn(1,a); }
+
+// these next two can do better by copying the jn function and
+// allowing more unencrypted operations before we drop into
+// encrypted operations, getting some performance without
+// suffering precision loss
+SHEFp yn(uint64_t n, const SHEFp &a)
+{
+  SHEInt ni(a.getSign().getPublicKey(), n, SHEInt::getBitSize(n), false);
+  return yn(ni, a);
+}
+
+SHEFp yn(const SHEInt &n, shemaxfloat_t a)
+{
+  return yn(n, SHEFp(n.getPublicKey(),a));
+}
+
+SHEFp yn(const SHEInt &n, const SHEFp &a)
+{
+  SHEFp result(a, 0.0);
+  SHEFp nf(a,n);
+  shemaxfloat_t x=0.0;
+  // note:Loop count must be even!
+  // Using Simson's rule: sn= delta_x/3*(f0 + 4f1 + 2f2 + 4f3 + 2f4 + 4f5 + f6)
+  shemaxfloat_t deltaX = M_PI/(SHEMATH_INTEGRAL_LOOP_COUNT-1);
+  shemaxfloat_t deltaX3 = deltaX/3.0;
+  shemaxfloat_t deltaX4_3 = (4.0/3.0)*deltaX;
+  shemaxfloat_t deltaX2_3 = (2.0/3.0)*deltaX;
+  if (sheMathLog)
+    (*sheMathLog) << "yn(" << (SHEFpSummary) a << ")" << std::endl
+                  << "*setup : x="  << x
+                  << " deltaX=" << deltaX
+                  << " deltaX/3=" << deltaX3 << std::endl;
+  for (int i=0; i < SHEMATH_INTEGRAL_LOOP_COUNT; i++) {
+    // we multiply the coefficient to our constant 1
+    SHEFp f = sin(a*shemaxfloat_sin(x) - nf*x);    // = f(x)
+    if ((i==0) || i==(SHEMATH_INTEGRAL_LOOP_COUNT-1)) {
+      result += f*deltaX3;
+    } else if (i & 1) {
+      result += f*deltaX4_3;
+    } else {
+      result += f*deltaX2_3;
+    }
+     if (sheMathLog)
+        (*sheMathLog) << "*step " << i << " : x=" << x
+                      << " f(x)=" << (SHEFpSummary) f << " result="
+                      << (SHEFpSummary) result << std::endl;
+    x += deltaX;
+  }
+
+  // close to 1
+  return M_1_PI * result;
+}
 //SHEFp nan(const char *) { return a; }

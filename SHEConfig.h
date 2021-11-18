@@ -20,10 +20,16 @@
 // SHEMATH_TRIG  number of tailor series for trig functions
 // can't be > 36! or you need to update the taylor_tan array
 #define SHEMATH_TRIG_LOOP_COUNT 15
+// arc function loops (inverse trig)
+#define SHEMATH_ARC_LOOP_COUNT 5
 // number of tailor series for Natural log calculations
 #define SHEMATH_LN_LOOP_COUNT 5
-// number of Simpson interations to calculate an integral
+// number of Simpson interations to calculate an integral (must be odd)
 #define SHEMATH_INTEGRAL_LOOP_COUNT 25
+// number of Newton's steps to take
+#define SHEMATH_NEWTON_LOOP_COUNT 3
+// number of steps to take for the bessel functions
+#define SHEMATH_BESSEL_LOOP_COUNT 3
 
 //////////////////////////////////////////////////////////////
 // flags
