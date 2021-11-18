@@ -3,7 +3,7 @@ Version:    {{{ git_dir_version }}}
 Release:    1%{?dist}
 Summary:    Simple Homomorphic Encryption Library
 
-License:    MIT License
+License:    Apache License
 URL:        https://someurl.org
 VCS:        {{{ git_dir_vcs }}}
 
