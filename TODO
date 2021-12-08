@@ -4,9 +4,6 @@
    - test all string combinations
 - Add missing math.h functions (see SHEMath.cpp).
    - //SHEFp nan(const char *) { return a; }
-- Add Unordered_map:
-  - a version that stores the components unencrypted, but are retrieved
-    encrypted.
 - Add rounding controlled by fp rounding preferences
 - Performance improvements
    - Improve FP performance by switching from offset to native exp, and
@@ -23,6 +20,7 @@
      reCrypt.
    - handle more unencrypted length/pos cases in SHEString.cpp rather than
      punting and encrypting those length/pos values.
+   - replace simpson integrals with trancendental functions for lgamma, tgamma, j1, jn, y1, yn
    - can we speed up udiv?
 - Add Vector operations
    - use slots in SHEInt to intialize it with a vector.
