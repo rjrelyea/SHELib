@@ -840,7 +840,7 @@ SHEFp SHEFp::operator*(shemaxfloat_t a) const
     sInf.sign ^= sign;
     sZero.sign ^= sign;
     if (a==0.0) {
-      return select(isInf(),sNan, sInf);
+      return select(isInf(), sNan, sZero);
     } else if (std::isinf(a)) {
       return select(isZero(), sNan, sInf);
     } else { // NAN

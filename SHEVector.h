@@ -239,4 +239,54 @@ public:
     return (unsigned char *)s.data();
   }
 };
+
+// access an unencrypted array with an encrypted index
+// Unencrypted must match an Encrypted select function
+//  example: SHEFp and shemaxfloat_t, or SHEInt and uint64_t
+template<class Encrypted, class Unencrypted>
+inline Encrypted getArray(const Encrypted &_default, Unencrypted *a,  size_t size,
+                          const SHEInt &index)
+{
+  Encrypted retVal(_default);
+  for (uint64_t i=0; i < size; i++) {
+    retVal = select(i == index, a[i], retVal);
+  }
+  return retVal;
+}
+
+
+// access an unencrypted vector with an encrypted index
+// Unencrypted must match an Encrypted select function
+//  example: SHEFp and shemaxfloat_t, or SHEInt and uint64_t
+template<class Encrypted, class Unencrypted>
+inline Encrypted getVector(const Encrypted &_default,
+                          const std::vector<Unencrypted> &a,
+                          const SHEInt &index)
+{
+  Encrypted retVal(_default);
+  for (int i=0; i < a.size(); i++) {
+    retVal = select(i == index, a[i], retVal);
+  }
+  return retVal;
+}
+
+// access an unencrypted map with an encrypted key.
+// Unencrypted must match an Encrypted select function
+//  example: SHEFp and shemaxfloat_t, or SHEInt and uint64_t
+// UnencryptedKey must match an Encrypted operator== function
+//  example: SHEFp and shemaxfloat_t, or SHEInt and uint64_t
+template<class EncryptedKey,   class EncryptedValue,
+         class UnencryptedKey, class UnencryptedValue>
+inline EncryptedValue getMap(const EncryptedValue &_default,
+                             const std::unordered_map<UnencryptedKey,
+                                                      UnencryptedValue> &a,
+                             const EncryptedKey &searchKey)
+{
+  EncryptedValue retVal(_default);
+  for (const auto& [key,value] : a) {
+    retVal = select(searchKey == key, value, retVal);
+  }
+  return retVal;
+}
+
 #endif

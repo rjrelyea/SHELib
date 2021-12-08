@@ -10,6 +10,7 @@
  * limitations under the License. See accompanying LICENSE file.
  */
 
+// private header copied for helib, original header is IO.h
 #ifndef HELIB_IO_H
 #define HELIB_IO_H
 /**

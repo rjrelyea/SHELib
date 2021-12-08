@@ -297,28 +297,6 @@ SHEFp select(const SHEInt &b, const SHEFp &a_true, const SHEFp &a_false);
 SHEFp select(const SHEInt &b, const SHEFp &a_true, shemaxfloat_t a_false);
 SHEFp select(const SHEInt &b, shemaxfloat_t a_true, const SHEFp &a_false);
 SHEFp select(const SHEInt &b, shemaxfloat_t a_true, shemaxfloat_t a_false);
-// fetch from an array based on an encrypted index
-inline SHEFp getArray(const SHEFp &_default, shemaxfloat_t *a,  int size,
-                      const SHEInt &index)
-{
-  SHEFp retVal(_default);
-  for (int i=0; i < size; i++) {
-    retVal = select(i == index, a[i], retVal);
-  }
-  return retVal;
-}
-
-inline SHEFp getVector(const SHEFp &_default,
-                       const std::vector<shemaxfloat_t> &a,
-                       const SHEInt &index)
-{
-  SHEFp retVal(_default);
-  for (int i=0; i < a.size(); i++) {
-    retVal = select(i == index, a[i], retVal);
-  }
-  return retVal;
-}
-
 
 // allow SHEBool.select(SHEFp, SHEFp) output
 class SHEFpBool : public SHEInt {

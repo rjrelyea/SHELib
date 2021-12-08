@@ -4,6 +4,7 @@
 #include "SHEInt.h"
 #include "SHEFp.h"
 #include "SHEMath.h"
+#include "SHEVector.h"
 #include "math.h"
 
 #define SHE_ARRAY_SIZE(t) (sizeof(t)/sizeof(t[0]))
@@ -1009,23 +1010,24 @@ SHEFp pow(const SHEFp &a, shemaxfloat_t b)
 SHEFp sqrt(const SHEFp &a)
 {
   SHEFp y(a);
-  SHEInt exp = y.getUnbiasedExp();
-  exp >>= 1;
-  y.setUnbiasedExp(exp);
-  y *= .5;
+  SHEFp x(a);
+  SHEInt exp(a.getExp());
+  SHEFp man = frexp(a,exp);
+  exp.reset(exp.getSize(), false);
+  exp = exp >> 1;
+  man *= 2;
+  y=ldexp(man,exp);
+  x *= .5;
   if (sheMathLog)
     (*sheMathLog) << "sqrt(" << (SHEFpSummary)a << ") = " << std::endl
                   << " step 0 : y0=" << (SHEFpSummary) y
                   << std::endl;
   for (int i=0; i < SHEMATH_NEWTON_LOOP_COUNT; i++) {
-    // newton's for 1/sqrt. we calculate 1/sqrt because it doesn't
-    // require multiple divisions in the loop, and only one division
-    // at the end.
-    y=.5*y*(3.0-a*y*y);
+    // newton's sqrt
+    y=.5*y+x/y;
     if (sheMathLog) (*sheMathLog) << " step " << (i+1) << ": y" << (i+1) << "="
                                   << (SHEFpSummary) y << std::endl;
   }
-  y = 1.0/y;
   y = select(a.isInf(), INFINITY, y);
   y = select(a.getSign(), NAN, y);
   y = select(a.isZero(), 0.0, y);
@@ -1036,23 +1038,23 @@ SHEFp sqrt(const SHEFp &a)
 SHEFp cbrt(const SHEFp &a)
 {
   SHEFp y(a.abs());
-  SHEInt exp = y.getUnbiasedExp();
+  SHEFp x(a.abs());
+  SHEInt exp(a.getExp());
+  SHEFp man = frexp(a,exp);
   exp = exp/3;
-  y.setUnbiasedExp(exp);
-  y *= (1.0/3.0);
+  man *= 2;
+  y=ldexp(man,exp);
+  x *= (1.0/3.0);
   if (sheMathLog)
     (*sheMathLog) << "cqrt(" << (SHEFpSummary)a << ") = " << std::endl
                   << " step 0 : y0=" << (SHEFpSummary) y
                   << std::endl;
   for (int i=0; i < SHEMATH_NEWTON_LOOP_COUNT; i++) {
-    // newton's for 1/cbrt. we calculate 1/cbrt because it doesn't
-    // require multiple divisions in the loop, and only one division
-    // at the end.
-    y=(1.0/3.0)*y*(4.0-a*y*y*y);
+    // newton's for cbrt.
+    y=(2.0/3.0)*y+x/(y*y);
     if (sheMathLog) (*sheMathLog) << " step " << (i+1) << ": y" << (i+1) << "="
                                   << (SHEFpSummary) y << std::endl;
   }
-  y = 1.0/y;
   y = select(a.isInf(), INFINITY, y);
   y = select(a.getSign(), NAN, y);
   y = select(a.isZero(), 0.0, y);
@@ -1072,14 +1074,14 @@ SHEFp frexp(const SHEFp &a, SHEInt &exp)
 SHEFp ldexp(const SHEFp &a, const SHEInt &n)
 {
   SHEFp result(a);
-  result.setUnbiasedExp(n+1);
+  result.setUnbiasedExp(n+a.getUnbiasedExp());
   return result;
 }
 
 SHEFp ldexp(const SHEFp &a, int64_t n)
 {
   SHEFp result(a);
-  result.setUnbiasedExp(n+1);
+  result.setUnbiasedExp(n+a.getUnbiasedExp());
   return result;
 }
 
@@ -1174,7 +1176,7 @@ SHEFp nextafter(const SHEFp &a, const SHEFp &b)
   mantissa.reset(mantissa.getSize()+1, true);
   mantissa.reset(mantissa.getSize(), false);
   SHEInt addr(mantissa,(uint64_t)1);
-  addr = (a<b).select(-1,addr);
+  addr = (a>b).select(-1,addr);
   mantissa += addr;
   SHEInt overflow = mantissa.getBitHigh(0);
   mantissa = overflow.select(mantissa >> 1, mantissa);
@@ -1194,7 +1196,7 @@ SHEFp nextafter(const SHEFp &a, shemaxfloat_t b)
   mantissa.reset(mantissa.getSize()+1, true);
   mantissa.reset(mantissa.getSize(), false);
   SHEInt addr(mantissa,(uint64_t)1);
-  addr = (a<b).select(-1,addr);
+  addr = (a>b).select(-1,addr);
   mantissa += addr;
   SHEInt overflow = mantissa.getBitHigh(0);
   mantissa = overflow.select(mantissa >> 1, mantissa);
@@ -1476,7 +1478,7 @@ SHEFp lgamma(const SHEFp &a)
 }
 
 // obviously there's a better way than this.
-SHEFp j1(const SHEFp &a) { return jn(1,a); }
+SHEFp j1(const SHEFp &a) { return jn((uint64_t) 1,a); }
 
 // these next two can do better by copying the jn function and
 // allowing more unencrypted operations before we drop into
@@ -1484,7 +1486,7 @@ SHEFp j1(const SHEFp &a) { return jn(1,a); }
 // suffering precision loss
 SHEFp jn(uint64_t n, const SHEFp &a)
 {
-  SHEInt ni(a.getSign().getPublicKey(), n, SHEInt::getBitSize(n), false);
+  SHEInt ni(a.getSign().getPublicKey(), n, SHEInt::getBitSize(n), true);
   return jn(ni, a);
 }
 
@@ -1505,8 +1507,10 @@ SHEFp jn(const SHEInt &n, const SHEFp &a)
   shemaxfloat_t deltaX4_3 = (4.0/3.0)*deltaX;
   shemaxfloat_t deltaX2_3 = (2.0/3.0)*deltaX;
   if (sheMathLog)
-    (*sheMathLog) << "jn(" << (SHEFpSummary) a << ")" << std::endl
+    (*sheMathLog) << "jn(" << (SHEIntSummary) n << ","
+                  << (SHEFpSummary) nf << "," << (SHEFpSummary) a << ")" << std::endl
                   << "*setup : x="  << x
+                  << " nf*x="  << (SHEFpSummary)(nf*x)
                   << " deltaX=" << deltaX
                   << " deltaX/3=" << deltaX3 << std::endl;
   for (int i=0; i < SHEMATH_INTEGRAL_LOOP_COUNT; i++) {
@@ -1531,7 +1535,7 @@ SHEFp jn(const SHEInt &n, const SHEFp &a)
 }
 
 // obviously there's a better way than this.
-SHEFp y1(const SHEFp &a) { return yn(1,a); }
+SHEFp y1(const SHEFp &a) { return yn((uint64_t)1,a); }
 
 // these next two can do better by copying the jn function and
 // allowing more unencrypted operations before we drop into
@@ -1539,7 +1543,7 @@ SHEFp y1(const SHEFp &a) { return yn(1,a); }
 // suffering precision loss
 SHEFp yn(uint64_t n, const SHEFp &a)
 {
-  SHEInt ni(a.getSign().getPublicKey(), n, SHEInt::getBitSize(n), false);
+  SHEInt ni(a.getSign().getPublicKey(), n, SHEInt::getBitSize(n), true);
   return yn(ni, a);
 }
 
@@ -1560,7 +1564,8 @@ SHEFp yn(const SHEInt &n, const SHEFp &a)
   shemaxfloat_t deltaX4_3 = (4.0/3.0)*deltaX;
   shemaxfloat_t deltaX2_3 = (2.0/3.0)*deltaX;
   if (sheMathLog)
-    (*sheMathLog) << "yn(" << (SHEFpSummary) a << ")" << std::endl
+    (*sheMathLog) << "yn(" << (SHEIntSummary) n << "("
+                  << (SHEFpSummary) nf << ")," << (SHEFpSummary) a << ")" << std::endl
                   << "*setup : x="  << x
                   << " deltaX=" << deltaX
                   << " deltaX/3=" << deltaX3 << std::endl;
