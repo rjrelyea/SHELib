@@ -39,7 +39,7 @@ will take on bool values in logical expression (1=non-zero, 0=0).
     to.
   - as much as possible, your standard programming will work (with the
     notable exception of comparison, which returns an encrypted value
-    that cannot affect your program flow (see more below).
+    that cannot affect your program flow (see more below)).
 
 2. Correct and fully functioning:  The goal is that anything that you can possibly
 do with the builtins, you should be able to do with the Encrypted values,
@@ -51,7 +51,7 @@ get a bool, or instance from a comparision).
     to do basic operations.
   - bootstrapping (see below) is implemented automatically so you don't
     have to worry about it in your initial implementation (even if it
-    slows down performance.
+    slows down performance).
 
 3. Perfomance: This is goal 3. This means if there are two ways of doing
    something, one way is significantly slower, but produces the correct
@@ -73,7 +73,7 @@ operation will be for a given security level. Security level is the strength
 of the system in bits. Several levels are provided that are not really secure,
 but allow you to experiment before cranking up to a higher security level.
 
-One you have your keyPair, you can save them to a file, or stream using the
+Once you have your keyPair, you can save them to a file, or stream using the
 C++ << operators. In a real system, you will want to send the publickey
 along with your encrypted data, so that they server can operate on your
 encrypted data.
@@ -173,6 +173,13 @@ SHEVectors can store and index any value that has a
 <type>select(const SHEInt &, const <type>&, const <type>&); function.
 Indexes are type SHEInt.
 
+            Using encrypted indicies on unencrypted arrays, vectors and maps.
+
+SHEVector.h also defines 3 template functions: getArray, getVector, and getMap
+which takes normal arrays, vectors and maps and returns encrypted values based
+on encrypted indicies. These functions also take a default encrypted value to
+use if the index is out of bounds.
+
             SHEFp operations
 
 Like SHEInt, SHEFp is a base class used to implement SHEHalfFloat,
@@ -185,9 +192,32 @@ Comparision operators return SHEBool and can be used in a select function:
 SHEFp select(&SHEBool sel,const SHEFp &a_true, const SHEFp &a_false);
 version also allow mixing in floating point constants as well.
 
+A special SHEFpBool class is defined which allows syntax like:
+    SHEFp a = SHEFPBool(c>b).select(c,b);
+This is equivalent to a = select(c>b,c,b);
+
            SHEString operations
 
-String operations are still under construction
+SHEString provides an encrypted version of std::string. Constructors take
+either a model string or a public key, just like SHEInt and SHEFp. Strings
+are implemented as a vector of SHEChar. The length of the string may or may
+not be encrypted. You can use the hasEncryptedLength flag to specify
+encryptedLength in the constructor. You can also call the encryptLength()
+methode to force a string to have an encrypted length. Any operation that uses
+an encrypted length itself, and encrypted position, or another string with an
+encrypted length will force the resulting string to have an encrypted length.
+The only operation that will cause a string with an encrypted length to have an
+unencrypted length is a resize with an unencrypted length value.
+
+Strings with encrypted lengths have 2 different modes, set by global class
+variables. The modes are fixed and non-fixed. Fixed strings all have the same
+length, set by the maxStringLength variable. If a string result would be
+larger than maxStringLength, then that result is truncated. Non-fixed strings
+have variable lengths which are guaranteed to be the same or longer than the
+encrypted length. These strings are still limited by the
+maxEncryptedStringLength because the length is stored in a SHEUInt8 variable.
+Applications can set the behavior with SHEString::SetFixedSize(), and query it
+with SHEString::getFixedSize() and SHEString::getHasFixedSize().
 
            Performance and bootstrapping.
 
@@ -228,7 +258,8 @@ can also output summary information for SHEInt and SHEFp types using
 the SHEIntSummary and SHEFpSummary casts before outputting them to a stream:
 
    std::cout << "My encrypted vars: " << (SHEIntSummary) myint
-             << ", " << (SHEFpSummary) myfloat << std::endl
+             << ", " << (SHEFpSummary) myfloat
+             << ", " << (SHEStringSummary) mystring << std::endl
 
 For SHEInts you'll get:
   SHEInt(label, bitSize, isUnsigned, isZero, capacity[:value])
@@ -247,6 +278,7 @@ For SHEInts you'll get:
                 the private key with SHEInt::setDebugPrivateKey(SHEPrivateKey&)
 For SHEFps you'll get:
   SHEFp(label, expBitSize, mantissaBitSize, capacity[:value])
+  where:
     -label       is the label you set on the variable (temporaries get their
                  own unique 't' label which is set when they are first
                  printed).
@@ -259,9 +291,29 @@ For SHEFps you'll get:
                  unencrypted and has no noise.
     -value       is the decrypted value. It's only included if you have set
                  the private key with SHEFp::setDebugPrivateKey(SHEPrivateKey&)
+For SHEStrings you'll get:
+  SHEString(label, encryptedLength, size, capacity[:”value”])
+  where:
+    -label       is the label you set on the variable (temporaries get their
+                 own unique 't' label which is set when they are first
+                 printed).
+    -encryptedLength  is ‘El’ if the length is encrypted and ‘Ul’
+                 for unencrypted length.
+    -size        size of the string buffer, for unencrypted lengths this is
+                 the string size, for encrypted lengths it’s always bigger
+                 than equal to the real length.
+    -capacity	 how many 'level's are left before this variable is too noisy
+                 to be useful, MAX means the value is effectively unencrypted
+                 and has no noise.
+    -value	 is the decrypted value. It's only included if you have set the
+                 private key with SHEString::setDebugPrivateKey(SHEPrivateKey&)
 
 If you don't cast the variables, you will get the object encoded as json, which
 is suitable for communicating to other locations, but not all that usable for
 debugging.
+
+If you set some radix other than std::dec, all the above values will still be
+printed in radix std::dec except the SHEInt values, which will use the radix
+you supplied (std::hex or std::octal)
 
 
