@@ -45,7 +45,10 @@
 // subraction compare is slower, but single bit operation compare
 // uses more levels, and thus may take multiple bootstrapping operations.
 // this option triggers using subtraction instead of single bit ops
-//#define SHEINT_COMPARE_USE_SUB 1
+#define SHEINT_USE_BINCMP 0  // use binCompare function to handle inequalities
+#define SHEINT_USE_SUB 1     // use subtraction to handle inequalities
+#define SHEINT_USE_BITS 2    // use bit checks to handle inequalities
+#define SHEINT_COMPARE SHEINT_USE_BINCMP
 
 //use long double as our basic floating point exchange (between encrypted
 //and decrypted values) by default we use double. Using the smaller value
@@ -58,7 +61,7 @@
 ////////////////////////////////////////////////////////
 
 // skip all division tests
-#define SHE_SKIP_DIV 1
+//#define SHE_SKIP_DIV 1
 
 //skip the trig tests
 #define SHE_SKIP_TRIG 1

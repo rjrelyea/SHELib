@@ -89,6 +89,12 @@ private:
   SHEInt &mulRaw(const SHEInt &a, SHEInt &result) const;
   SHEInt &udivRaw(const SHEInt &a, SHEInt *result, SHEInt *mod) const;
   SHEInt &divmod(const SHEInt &a, SHEInt *result, SHEInt *mod) const;
+  SHEInt &cmpRaw(const SHEInt &a, SHEInt &gt, SHEInt &lt) const;
+  void docmp(const SHEInt &a, SHEInt &gt, SHEInt &lt) const;
+  SHEInt isgt(const SHEInt &a) const;
+  SHEInt islt(const SHEInt &a) const;
+  SHEInt bitgt(const SHEInt &a) const;
+  SHEInt reduce(void) const;
 
   // shifts
   void leftShift(uint64_t shift);
@@ -250,6 +256,9 @@ public:
   SHEInt isNonNegative(void) const;
   SHEInt isPositive(void) const;
   SHEInt isNonPositive(void) const;
+  SHEInt cmp(const SHEInt &a) const;
+  // for testing only
+  SHEInt _bitgt(const SHEInt &a) const;
   bool isUnencryptedZero(void) const;
   // Operatator ? : can't be overridden,
   // so a?b:c becomes a.select(b,c)

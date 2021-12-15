@@ -8,6 +8,7 @@
 #include "SHEMagic.h"
 #include <helib/helib.h>
 #include <helib/binaryArith.h>
+#include <helib/binaryCompare.h>
 #include <helib/intraSlot.h>
 #include "helibio.h"
 
@@ -527,6 +528,21 @@ SHEInt &SHEInt::addRaw(const SHEInt &a, SHEInt &result) const
    return result;
 }
 
+SHEInt &SHEInt::cmpRaw(const SHEInt &a, SHEInt &gt, SHEInt &lt) const
+{
+  if (log) {
+    (*log) << (SHEIntSummary)*this << ".cmpRaw(" << (SHEIntSummary) a << ","
+        << (SHEIntSummary)gt << "," << (SHEIntSummary)lt << ") ->" << std::flush;
+  }
+  helib::compareTwoNumbers(gt.encryptedData[0], lt.encryptedData[0],
+            helib::CtPtrs_vectorCt((std::vector<helib::Ctxt>&)encryptedData),
+            helib::CtPtrs_vectorCt((std::vector<helib::Ctxt>&)a.encryptedData),
+            !isUnsigned,
+            (std::vector<helib::zzX> *)pubKey->getUnpackSlotEncoding());
+   if (log) (*log) << "gt=" <<(SHEIntSummary)gt << "lt=" << (SHEIntSummary)lt << std::endl;
+   return gt;
+}
+
 // caller must ensure that the bit size of this, a, and result are all equal
 SHEInt &SHEInt::subRaw(const SHEInt &a, SHEInt &result) const
 {
@@ -773,39 +789,26 @@ SHEInt &SHEInt::udivRaw(const SHEInt &div, SHEInt *result, SHEInt *mod) const
   SHEInt remainder(dividend, 0, "remainder");
   SHEInt quotient(dividend, 0, "quotient");
   SHEInt quotientShift(dividend, 0, "quotientShift");
+  SHEInt t(dividend, 0, "t");
   SHEInt sel(*pubKey, 1, 1, true, "sel");
 
   // this is logically 'while remainder < dividend'. We don't know when
   // we hit this condition because sel is encrypted, so we loop over the full
   // length if the dividend, but stop updating once sel is true
   for (int i=0; i < dividend.bitSize; i++) {
-    helib::Ctxt bit = dividend.encryptedData[dividend.bitSize-1];
+    SHEInt bit = dividend.getBitHigh(0);
     remainder.leftShift(1);
-    if (remainder.isExplicitZero && !bit.isEmpty()) {
-      remainder.expandZero();
-    }
-    if (!bit.isEmpty()) {
-      remainder.encryptedData[0] = bit;
-    }
+    remainder.setBit(0,bit);
     // precheck bootstrapping on deep use variables
     sel.verifyArgs(remainder, SHEINT_DEFAULT_LEVEL_TRIGGER*2);
     quotient.verifyArgs(quotientShift, SHEINT_DEFAULT_LEVEL_TRIGGER*2);
     sel = sel && remainder < divisor;
     dividend.leftShift(1);
-    SHEInt t(*pubKey, 0, bitSize, false, "t");
     t = remainder - divisor;
-    helib::Ctxt qbit = t.encryptedData[dividend.bitSize-1];
+    SHEInt q = t.getBitHigh(0);
     quotientShift = quotient << 1;
-    if (quotientShift.isExplicitZero) {
-      quotientShift.expandZero();
-    }
-    // q == qbit
-    SHEInt q(*pubKey, 0, 1, true, "q");
-    q.expandZero();
-    q.encryptedData[0] = qbit;
-    qbit.addConstant(NTL::ZZX(1L));
-    // quotient |= !qbit
-    quotientShift.encryptedData[0] = qbit;
+    // quotient |= !q
+    quotientShift.setBit(0,!q);
     quotient = sel.select(quotient,quotientShift);
     remainder = (q || sel).select(remainder, t);
   }
@@ -1065,7 +1068,7 @@ SHEInt &SHEInt::divmod(const SHEInt &a, SHEInt &result, SHEInt &mod) const
 {
   return divmod(a, &result, &mod);
 }
- 
+
 //
 // No real efficiency gain in division, just do the normal
 // wrapping
@@ -1644,6 +1647,191 @@ SHEInt SHEInt::isNonPositive(void) const
   return isNonPos;
 }
 
+// handle the case where the sign is different, in this case
+// expand the unsigned value to get a leading zero and do a signed
+// compare.
+void SHEInt::docmp(const SHEInt &a, SHEInt &gt, SHEInt &lt) const
+{
+  if (isUnsigned != a.isUnsigned) {
+    if (isUnsigned) {
+      SHEInt thiscmp(*this);
+      thiscmp.reset(getSize()+1,true);
+      thiscmp.reset(getSize()+1,false);
+      thiscmp.cmpRaw(a, gt, lt);
+    } else {
+      SHEInt acmp(a);
+      acmp.reset(getSize()+1,true);
+      acmp.reset(getSize()+1,false);
+      cmpRaw(acmp, gt, lt);
+    }
+  } else {
+    // signs are the same, just do a normal compare
+    cmpRaw(a, gt, lt);
+  }
+}
+
+SHEInt SHEInt::bitgt(const SHEInt &a) const
+{
+  SHEInt a_prime(a);
+  a_prime.reset(compareBestSize(a.bitSize),isUnsigned);
+  // do the compare without the overhead of subtract
+  // by finding the highest bit.
+  // This is faster than subraction, because it operates
+  // on single bits, but it does more operations so requires
+  // more levels to succeed.
+  SHEInt b(*this);
+  b.reset(a_prime.bitSize,isUnsigned);
+  b.verifyArgs(a_prime, SHEINT_DEFAULT_LEVEL_TRIGGER);
+  SHEInt result(*pubKey, 1, 1, true);
+  helib::Ctxt hasResult = result.encryptedData[0];
+  helib::Ctxt localResult = result.encryptedData[0];
+  hasResult.clear();
+  localResult.clear();
+  for (int i=b.bitSize-1; i >=0; i--) {
+    helib::Ctxt notEqual=a_prime.encryptedData[i];
+    notEqual += b.encryptedData[i]; // notEqual = a_prime[i] ^ b[i];
+    // if we don't already have a result, our tentative result is
+    // the value of the 'b' bit (1 implies b > a)
+    localResult=::selectBit(hasResult,localResult,b.encryptedData[i]);
+    // if we are equal, hasResult doesn't change (and if zero we
+    // will get a new localResult in the next iteration, if we aren't,
+    // set hasReault to one and lock in the previous localResult.
+    hasResult=::selectBit(notEqual,result.encryptedData[0],hasResult);
+    // this compare is expensive in terms of capacity, may need to reCrypt
+    // a couple of times. Fortunately this is just one bit
+    if ((hasResult.bitCapacity() < SHEINT_DEFAULT_LEVEL_TRIGGER)
+       || (localResult.bitCapacity() < SHEINT_DEFAULT_LEVEL_TRIGGER)) {
+      if (log) {
+        (*log) << " -reCrypting hasResults(" << hasResult.bitCapacity()
+               << ") and localResult(" << localResult.bitCapacity()
+               << ") at bit " << i << " of" << b.bitSize << std::endl;
+      }
+      const helib::PubKey &publicKey = pubKey->getPublicKey();
+      // collect the relevent bits into a single vector and
+      // use packedRecrypt to speed up the recypt operation
+      //std::vector<helib::Ctxt> bits(0, hasResult);
+      if (hasResult.bitCapacity() < SHEINT_LEVEL_THRESHOLD) {
+         if (log) (*log) << "add hasResult" << std::endl;
+         //bits.push_back(hasResult);
+         publicKey.reCrypt(hasResult);
+         reCryptBitCounter();
+      }
+      if (localResult.bitCapacity() < SHEINT_LEVEL_THRESHOLD) {
+         if (log) (*log) << "add localResult" << std::endl;
+         //bits.push_back(localResult);
+         publicKey.reCrypt(localResult);
+         reCryptBitCounter();
+      }
+      //if (log) (*log) << "bits=" << bits.size() << std::endl;
+      //helib::CtPtrs_vectorCt wrapper(bits);
+      //helib::packedRecrypt(wrapper,
+      //      *(std::vector<helib::zzX> *)pubKey->getUnpackSlotEncoding(),
+      //      pubKey->getEncryptedArray());
+      if (log) {
+        (*log) << " newCapacity: hasResults(" << hasResult.bitCapacity()
+               << ") and localResult(" << localResult.bitCapacity()
+               << ")" << std::endl;
+      }
+    }
+  }
+  // now handle sign manipulation
+  // if either sign bit is on, it changes the sense of the compare.
+  // if both are on, it changes it back, we accomplish this
+  // by xoring the sign bit with the result for each signed value.
+  if (!isUnsigned) {
+    localResult += b.encryptedData[b.bitSize-1];
+  }
+  if (!a_prime.isUnsigned) {
+    localResult += a_prime.encryptedData[a_prime.bitSize-1];
+  }
+  // if they are equal, hasResult is zero, make the overall result
+  // zero as well.
+  localResult.multiplyBy(hasResult);
+  result.encryptedData[0] = localResult;
+  return result;
+}
+
+SHEInt SHEInt::isgt(const SHEInt &a) const
+{
+  SHEInt gt(*pubKey, 1, 1, true);
+  SHEInt lt(*pubKey, 1, 1, true);
+
+  docmp(a, gt, lt);
+  return gt;
+}
+
+SHEInt SHEInt::islt(const SHEInt &a) const
+{
+  SHEInt gt(*pubKey, 1, 1, true);
+  SHEInt lt(*pubKey, 1, 1, true);
+
+  docmp(a, gt, lt);
+  return lt;
+}
+
+// presumes input is signed, return 1 if input is positive, -1 if input is
+// negative, and zero if input is zero
+SHEInt SHEInt::reduce(void) const
+{
+  SHEInt result(*pubKey, 1, 2, false);
+  result.setBitHigh(0,getBitHigh(0));
+  result.setBit(0,isZero());
+  return result;
+}
+
+// testing only
+SHEInt SHEInt::_bitgt(const SHEInt &a) const
+{
+  if (isExplicitZero) {
+    if (a.isUnsigned) {
+      return *this;
+    }
+    return a.isPositive();
+  }
+  if (a.isExplicitZero) {
+    if (isUnsigned) {
+      return isNotZero();
+    }
+    return isPositive();
+  }
+  return bitgt(a);
+}
+
+// returns 0 if this == a, -1 if this < a and 1 if this > a
+SHEInt SHEInt::cmp(const SHEInt &a) const
+{
+  SHEInt _isGt(*pubKey, 1, 2, false);
+  SHEInt _isLt(*pubKey, -1, 2, false);
+  SHEInt _isZero(*pubKey, (uint64_t)0, 2, false);
+
+  if (isExplicitZero) {
+    if (a.isExplicitZero) {
+      return _isZero;
+    }
+    if (a.isUnsigned) {
+      return a.isZero().select(_isZero,_isLt);
+    }
+    return a.reduce();
+  }
+  if (a.isExplicitZero) {
+    if (isUnsigned) {
+      return isNotZero().select(_isGt, _isZero);
+    }
+    return reduce();
+  }
+  SHEInt gt(*pubKey, 1, 1, true);
+  SHEInt lt(*pubKey, 1, 1, false);
+
+  docmp(a, gt, lt);
+  lt.reset(2,false); // 1 -> -1 (11 = 3), 0 -> 0
+  gt.reset(2,true);  // 1 ->  1 (01 = 1), 0 -> 0
+  gt.reset(2,false); // make gt_ signed so the final result is signed
+  return lt ^ gt;    // xor is the most efficent way of combing
+                     // lt_ and gt_, in the problematic case where
+                     // they are both 1 (an error in cmpRaw), then it
+                     // will return a unique 2 (or -2)
+}
+
 SHEInt SHEInt::operator!(void) const
 {
   SHEInt result(*this);
@@ -1823,87 +2011,15 @@ SHEInt SHEInt::operator>(const SHEInt &a) const
     if (log) { (*log) << (SHEIntSummary)isNotZero() << std::endl; }
     return isPositive(); // if w are zero or negative we are < a
   }
+#if SHEINT_COMPARE == SHEINT_USE_SUB
   SHEInt a_prime(a);
-#ifdef SHEIT_COMPARE_USE_SUB
   a_prime.reset(compareBestSize(a.bitSize)+1,a.isUnsigned);
   if (log) (*log) << std::endl << "Doing subtraction" << std::endl;
-  SHEInt result=(*this-a_prime).getBitHigh(0);
+  SHEInt result = (*this-a_prime).getBitHigh(0);
+#elif SHEINT_COMPARE == SHEINT_USE_BITS
+  SHEInt result = bitgt(a);
 #else
-  a_prime.reset(compareBestSize(a.bitSize),isUnsigned);
-  // do the compare without the overhead of subtract
-  // by finding the highest bit.
-  // This is faster than subraction, because it operates
-  // on single bits, but it does more operations so requires
-  // more levels to succeed.
-  SHEInt b(*this);
-  b.reset(a_prime.bitSize,isUnsigned);
-  b.verifyArgs(a_prime, SHEINT_DEFAULT_LEVEL_TRIGGER);
-  SHEInt result(*pubKey, 1, 1, true);
-  helib::Ctxt hasResult = result.encryptedData[0];
-  helib::Ctxt localResult = result.encryptedData[0];
-  hasResult.clear();
-  localResult.clear();
-  for (int i=b.bitSize-1; i >=0; i--) {
-    helib::Ctxt notEqual=a_prime.encryptedData[i];
-    notEqual += b.encryptedData[i]; // notEqual = a_prime[i] ^ b[i];
-    // if we don't already have a result, our tentative result is
-    // the value of the 'b' bit (1 implies b > a)
-    localResult=::selectBit(hasResult,localResult,b.encryptedData[i]);
-    // if we are equal, hasResult doesn't change (and if zero we
-    // will get a new localResult in the next iteration, if we aren't,
-    // set hasReault to one and lock in the previous localResult.
-    hasResult=::selectBit(notEqual,result.encryptedData[0],hasResult);
-    // this compare is expensive in terms of capacity, may need to reCrypt
-    // a couple of times. Fortunately this is just one bit
-    if ((hasResult.bitCapacity() < SHEINT_DEFAULT_LEVEL_TRIGGER)
-       || (localResult.bitCapacity() < SHEINT_DEFAULT_LEVEL_TRIGGER)) {
-      if (log) {
-        (*log) << " -reCrypting hasResults(" << hasResult.bitCapacity()
-               << ") and localResult(" << localResult.bitCapacity()
-               << ") at bit " << i << " of" << b.bitSize << std::endl;
-      }
-      const helib::PubKey &publicKey = pubKey->getPublicKey();
-      // collect the relevent bits into a single vector and
-      // use packedRecrypt to speed up the recypt operation
-      //std::vector<helib::Ctxt> bits(0, hasResult);
-      if (hasResult.bitCapacity() < SHEINT_LEVEL_THRESHOLD) {
-         if (log) (*log) << "add hasResult" << std::endl;
-         //bits.push_back(hasResult);
-         publicKey.reCrypt(hasResult);
-         reCryptBitCounter();
-      }
-      if (localResult.bitCapacity() < SHEINT_LEVEL_THRESHOLD) {
-         if (log) (*log) << "add localResult" << std::endl;
-         //bits.push_back(localResult);
-         publicKey.reCrypt(localResult);
-         reCryptBitCounter();
-      }
-      //if (log) (*log) << "bits=" << bits.size() << std::endl;
-      //helib::CtPtrs_vectorCt wrapper(bits);
-      //helib::packedRecrypt(wrapper,
-      //      *(std::vector<helib::zzX> *)pubKey->getUnpackSlotEncoding(),
-      //      pubKey->getEncryptedArray());
-      if (log) {
-        (*log) << " newCapacity: hasResults(" << hasResult.bitCapacity()
-               << ") and localResult(" << localResult.bitCapacity()
-               << ")" << std::endl;
-      }
-    }
-  }
-  // now handle sign manipulation
-  // if either sign bit is on, it changes the sense of the compare.
-  // if both are on, it changes it back, we accomplish this
-  // by xoring the sign bit with the result for each signed value.
-  if (!isUnsigned) {
-    localResult += b.encryptedData[b.bitSize-1];
-  }
-  if (!a_prime.isUnsigned) {
-    localResult += a_prime.encryptedData[a_prime.bitSize-1];
-  }
-  // if they are equal, hasResult is zero, make the overall result
-  // zero as well.
-  localResult.multiplyBy(hasResult);
-  result.encryptedData[0] = localResult;
+  SHEInt result = isgt(a);
 #endif
   if (log) { (*log) << (SHEIntSummary)result << std::endl; }
   return result;

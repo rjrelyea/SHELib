@@ -1,6 +1,6 @@
 //
-// Test different Contexts for the best properties when used
-// in Simple Homomorphic Encryption
+// Test different strategies for comparing integers with differ Contexts
+// and different integer sizes in Simple Homomorphic Encryption
 //
 #include <iostream>
 #include "SHEKey.h"
@@ -12,49 +12,67 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
 {
   SHEBool rb(r);
   SHEBool rs(r);
+  SHEBool rc(r);
   Timer timer;
   // comparison is the most level intensive operation.. compare
   // full level versus reCrypted version
   SHEInt::resetRecryptCounters();
   std::cout << "      >init bit capacity:" << a.bitCapacity() << std::endl;
-  std::cout << "      > a<b: " << std::flush;
+  std::cout << "      > a.bitgt(b): " << std::flush;
   timer.start();
-  rb = a < b;
+  rb = a._bitgt(b);
   timer.stop();
-  std::cout << (PrintTime) timer.elapsedMilliseconds() << " boostraps = "
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << " bootstraps = "
             << SHEInt::getRecryptCounters() << std::endl;
   std::cout << "      > a-b: " << std::flush;
   timer.start();
-  rs = a - b;
+  SHEInt::resetRecryptCounters();
+  rs = (a - b).getBitHigh(0);
   timer.stop();
-  std::cout << (PrintTime) timer.elapsedMilliseconds() << " boostraps = "
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << " bootstraps = "
             << SHEInt::getRecryptCounters() << std::endl;
-  std::cout << "     >post cmp bit capacity:" << rb.bitCapacity() << std::endl;
+  std::cout << "      > a.cmp(b): " << std::flush;
+  timer.start();
+  SHEInt::resetRecryptCounters();
+  rc = a.cmp(b);
+  timer.stop();
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << " bootstraps = "
+            << SHEInt::getRecryptCounters() << std::endl;
+  std::cout << "     >post bgt bit capacity:" << rb.bitCapacity() << std::endl;
   std::cout << "     >post sub bit capacity:" << rs.bitCapacity() << std::endl;
+  std::cout << "     >post cmp bit capacity:" << rc.bitCapacity() << std::endl;
   std::cout << "  >double boostrap time: " << std::flush;
   SHEInt::resetRecryptCounters();
   timer.start();
   b.reCrypt(a, true);
   timer.stop();
-  std::cout << (PrintTime) timer.elapsedMilliseconds() << " boostraps = "
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << " bootstraps = "
             << SHEInt::getRecryptCounters() << std::endl;
   std::cout << "     >post bootstrap bit capacity:" << a.bitCapacity() << std::endl;
-  std::cout << "     > a<b (post bootstrap): " << std::flush;
+  std::cout << "     > a.bitgt(b) (post bootstrap): " << std::flush;
   SHEInt::resetRecryptCounters();
   timer.start();
-  rb = a < b;
+  rb = a._bitgt(b);
+  timer.stop();
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << " bootstraps = "
+            << SHEInt::getRecryptCounters() << std::endl;
+  std::cout << "     > a-b (post bootstrap): " << std::flush;
+  SHEInt::resetRecryptCounters();
+  timer.start();
+  rs = (a - b).getBitHigh(0);
   timer.stop();
   std::cout << (PrintTime) timer.elapsedMilliseconds() << " boostraps = "
             << SHEInt::getRecryptCounters() << std::endl;
-  std::cout << "     > a-b (post bootsrap): " << std::flush;
-  SHEInt::resetRecryptCounters();
+  std::cout << "      > a.cmp(b) (post bootstrap): " << std::flush;
   timer.start();
-  rs = a - b;
+  SHEInt::resetRecryptCounters();
+  rc = a.cmp(b);
   timer.stop();
-  std::cout << (PrintTime) timer.elapsedMilliseconds() << " boostraps = "
+  std::cout << (PrintTime) timer.elapsedMilliseconds() << " bootstraps = "
             << SHEInt::getRecryptCounters() << std::endl;
-  std::cout << "     >post cmp bit capacity:" << rb.bitCapacity() << std::endl;
+  std::cout << "     >post acmp bit capacity:" << rb.bitCapacity() << std::endl;
   std::cout << "     >post sub bit capacity:" << rs.bitCapacity() << std::endl;
+  std::cout << "     >post cmp bit capacity:" << rc.bitCapacity() << std::endl;
 }
 
 void
