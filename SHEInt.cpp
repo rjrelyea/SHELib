@@ -139,10 +139,243 @@ bool SHEInt::needRecrypt(long level) const
   return level > bitCapacity();
 }
 
-
+// needRecrypt returns true of any of the passed in ints falls below a given
+// level
 bool SHEInt::needRecrypt(const SHEInt &a, long level) const
 {
   return needRecrypt(level) || a.needRecrypt(level);
+}
+
+bool SHEInt::needRecrypt(const SHEInt &a, const SHEInt &b, long level) const
+{
+  return needRecrypt(level) || a.needRecrypt(level) || b.needRecrypt(level) ;
+}
+
+bool SHEInt::needRecrypt(const SHEInt &a, const SHEInt &b, const SHEInt &c,
+                         long level) const
+{
+  return needRecrypt(a, level) || b.needRecrypt(c, level);
+}
+bool SHEInt::needRecrypt(const SHEInt &a, const SHEInt &b, const SHEInt &c,
+                         const SHEInt &d, long level) const
+{
+  return needRecrypt(a, b, level) || c.needRecrypt(d, level);
+}
+
+bool SHEInt::needRecrypt(const SHEInt &a, const SHEInt &b, const SHEInt &c,
+                         const SHEInt &d, const SHEInt &e, long level) const
+{
+  return needRecrypt(a, b, level) || c.needRecrypt(d, e, level);
+}
+
+// reCrypt performs a simultaneous bootstrap on all the given integers.
+// we skip integers which appear to have a higher capacity then the expected
+// result of the bootstrap itself. 'force' overrides this behavior and we
+// will unconditionally recrypt everything.
+
+// build a CtPtrs container that holds all the CtrPtrs we wish
+// Recrypt
+struct CtPtrs_array : helib::CtPtrs
+{
+  // sigh I would prefer to use std::vector, but trying to get the
+  // allocator right for helib::CtPtrs is non-trivial.
+  const helib::CtPtrs *a[10];
+  int nElements;
+  CtPtrs_array(void)  {
+    for (int i=0; i < 10; i++)
+      a[i] = nullptr;
+    nElements=0;
+  }
+  void addEntry(const helib::CtPtrs& a_) { a[nElements++] = &a_; }
+  long size() const override {
+    long tsize = 0;
+    for (int i=0; i < nElements; i++) {
+      tsize += lsize(*a[i]);
+    }
+    return tsize;
+  }
+  helib::Ctxt *operator[](long i) const override
+  {
+    long tsize = 0;
+    for (int element=0; element < nElements; element++) {
+      long _lsize = lsize(*a[element]);
+      long offset = i - tsize;
+      if (offset < _lsize) {
+        return (*a[element])[offset];
+      }
+      tsize += _lsize;
+    }
+    return nullptr; // shouldn't happen
+  }
+};
+
+void SHEInt::reCrypt(SHEInt &a, SHEInt &b, SHEInt &c, SHEInt &d, SHEInt &e,
+                     bool force)
+{
+  if (!force) {
+    if ((isExplicitZero) || (bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      a.reCrypt(b, c, d, e, false);
+      return;
+    }
+    if ((a.isExplicitZero) || (a.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(b, c, d, e, false);
+      return;
+    }
+    if ((b.isExplicitZero) || (b.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(a, c, d, e, false);
+      return;
+    }
+    if ((c.isExplicitZero) || (c.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(a, b, d, e, false);
+      return;
+    }
+    if ((d.isExplicitZero) || (d.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(a, b, c, e, false);
+      return;
+    }
+    if ((e.isExplicitZero) || (e.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(a, b, c, d, false);
+      return;
+    }
+  }
+  if (log) {
+    (*log) << "[Recrypt(" << (SHEIntSummary)*this << ","
+           << (SHEIntSummary) a << ")->" << std::flush;
+  }
+  helib::CtPtrs_vectorCt wrapper(encryptedData);
+  helib::CtPtrs_vectorCt wrapperA(a.encryptedData);
+  helib::CtPtrs_vectorCt wrapperB(b.encryptedData);
+  helib::CtPtrs_vectorCt wrapperC(c.encryptedData);
+  helib::CtPtrs_vectorCt wrapperD(d.encryptedData);
+  helib::CtPtrs_vectorCt wrapperE(e.encryptedData);
+  CtPtrs_array matrix;
+  matrix.addEntry(wrapper);
+  matrix.addEntry(wrapperA);
+  matrix.addEntry(wrapperB);
+  matrix.addEntry(wrapperC);
+  matrix.addEntry(wrapperD);
+  matrix.addEntry(wrapperE);
+  helib::packedRecrypt(matrix,
+            *(std::vector<helib::zzX> *)pubKey->getUnpackSlotEncoding(),
+            pubKey->getEncryptedArray());
+  reCryptSextupleCounter();
+}
+
+void SHEInt::reCrypt(SHEInt &a, SHEInt &b, SHEInt &c, SHEInt &d, bool force)
+{
+  if (!force) {
+    if ((isExplicitZero) || (bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      a.reCrypt(b, c, d, false);
+      return;
+    }
+    if ((a.isExplicitZero) || (a.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(b, c, d, false);
+      return;
+    }
+    if ((b.isExplicitZero) || (b.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(a, c, d, false);
+      return;
+    }
+    if ((c.isExplicitZero) || (c.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(a, b, d, false);
+      return;
+    }
+    if ((d.isExplicitZero) || (d.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(a, b, c, false);
+      return;
+    }
+  }
+  if (log) {
+    (*log) << "[Recrypt(" << (SHEIntSummary)*this << ","
+           << (SHEIntSummary) a << ")->" << std::flush;
+  }
+  helib::CtPtrs_vectorCt wrapper(encryptedData);
+  helib::CtPtrs_vectorCt wrapperA(a.encryptedData);
+  helib::CtPtrs_vectorCt wrapperB(b.encryptedData);
+  helib::CtPtrs_vectorCt wrapperC(c.encryptedData);
+  helib::CtPtrs_vectorCt wrapperD(d.encryptedData);
+  CtPtrs_array matrix;
+  matrix.addEntry(wrapper);
+  matrix.addEntry(wrapperA);
+  matrix.addEntry(wrapperB);
+  matrix.addEntry(wrapperC);
+  matrix.addEntry(wrapperD);
+  helib::packedRecrypt(matrix,
+            *(std::vector<helib::zzX> *)pubKey->getUnpackSlotEncoding(),
+            pubKey->getEncryptedArray());
+  reCryptQuintupleCounter();
+}
+
+void SHEInt::reCrypt(SHEInt &a, SHEInt &b, SHEInt &c, bool force)
+{
+  if (!force) {
+    if ((isExplicitZero) || (bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      a.reCrypt(b, c, false);
+      return;
+    }
+    if ((a.isExplicitZero) || (a.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(b, c, false);
+      return;
+    }
+    if ((b.isExplicitZero) || (b.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(a, c, false);
+      return;
+    }
+    if ((c.isExplicitZero) || (c.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(a, b, false);
+      return;
+    }
+  }
+  if (log) {
+    (*log) << "[Recrypt(" << (SHEIntSummary)*this << ","
+           << (SHEIntSummary) a << ")->" << std::flush;
+  }
+  helib::CtPtrs_vectorCt wrapper(encryptedData);
+  helib::CtPtrs_vectorCt wrapperA(a.encryptedData);
+  helib::CtPtrs_vectorCt wrapperB(b.encryptedData);
+  helib::CtPtrs_vectorCt wrapperC(c.encryptedData);
+  CtPtrs_array matrix;
+  matrix.addEntry(wrapper);
+  matrix.addEntry(wrapperA);
+  matrix.addEntry(wrapperB);
+  matrix.addEntry(wrapperC);
+  helib::packedRecrypt(matrix,
+            *(std::vector<helib::zzX> *)pubKey->getUnpackSlotEncoding(),
+            pubKey->getEncryptedArray());
+  reCryptQuadrupleCounter();
+}
+
+void SHEInt::reCrypt(SHEInt &a, SHEInt &b, bool force)
+{
+  if (!force) {
+    if ((isExplicitZero) || (bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      a.reCrypt(b, false);
+      return;
+    }
+    if ((a.isExplicitZero) || (a.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(b, false);
+      return;
+    }
+    if ((b.isExplicitZero) || (b.bitCapacity() > SHEINT_LEVEL_THRESHOLD)) {
+      reCrypt(a, false);
+      return;
+    }
+  }
+  if (log) {
+    (*log) << "[Recrypt(" << (SHEIntSummary)*this << ","
+           << (SHEIntSummary) a << ")->" << std::flush;
+  }
+  helib::CtPtrs_vectorCt wrapper(encryptedData);
+  helib::CtPtrs_vectorCt wrapperA(a.encryptedData);
+  helib::CtPtrs_vectorCt wrapperB(b.encryptedData);
+  CtPtrs_array matrix;
+  matrix.addEntry(wrapper);
+  matrix.addEntry(wrapperA);
+  matrix.addEntry(wrapperB);
+  helib::packedRecrypt(matrix,
+            *(std::vector<helib::zzX> *)pubKey->getUnpackSlotEncoding(),
+            pubKey->getEncryptedArray());
+  reCryptTripleCounter();
 }
 
 void SHEInt::reCrypt(SHEInt &a, bool force)
@@ -172,6 +405,7 @@ void SHEInt::reCrypt(SHEInt &a, bool force)
   }
 }
 
+
 void SHEInt::reCrypt(bool force)
 {
   // don't check threshold here. If we wound up here with a greater threshold
@@ -192,10 +426,40 @@ void SHEInt::reCrypt(bool force)
   }
 }
 
+// verifyArgs can be used before various calls to bring a set of variables up
+// to a given level at once.
+void SHEInt::verifyArgs(SHEInt &a, SHEInt &b, SHEInt &c, SHEInt &d, SHEInt &e,
+                        long level)
+{
+  if (needRecrypt(a, b, c, d, e, level)) {
+    reCrypt(a, b, c, d, e, false);
+  }
+}
+
+void SHEInt::verifyArgs(SHEInt &a, SHEInt &b, SHEInt &c, SHEInt &d, long level)
+{
+  if (needRecrypt(a, b, c, d, level)) {
+    reCrypt(a, b, c, d, false);
+  }
+}
+
+void SHEInt::verifyArgs(SHEInt &a, SHEInt &b, SHEInt &c, long level)
+{
+  if (needRecrypt(a, b, c, level)) {
+    reCrypt(a, b, c, false);
+  }
+}
+
+void SHEInt::verifyArgs(SHEInt &a, SHEInt &b, long level)
+{
+  if (needRecrypt(a, b, level)) {
+    reCrypt(a, b, false);
+  }
+}
 
 void SHEInt::verifyArgs(SHEInt &a, long level)
 {
-  if (needRecrypt(a,level)) {
+  if (needRecrypt(a, level)) {
     reCrypt(a, false);
   }
 }
@@ -800,8 +1064,8 @@ SHEInt &SHEInt::udivRaw(const SHEInt &div, SHEInt *result, SHEInt *mod) const
     remainder.leftShift(1);
     remainder.setBit(0,bit);
     // precheck bootstrapping on deep use variables
-    sel.verifyArgs(remainder, SHEINT_DEFAULT_LEVEL_TRIGGER*2);
-    quotient.verifyArgs(quotientShift, SHEINT_DEFAULT_LEVEL_TRIGGER*2);
+    sel.verifyArgs(remainder, quotient, quotientShift,
+                   SHEINT_DEFAULT_LEVEL_TRIGGER*2);
     sel = sel && remainder < divisor;
     dividend.leftShift(1);
     t = remainder - divisor;
@@ -1848,15 +2112,16 @@ SHEInt SHEInt::select(const SHEInt &a_true, const SHEInt &a_false) const
     return isNotZero().select(a_true, a_false);
   }
   SHEInt mask(*this);
-  mask.verifyArgs();
-  mask.reset(std::max(a_true.bitSize,a_false.bitSize), false);
-  mask.isUnsigned = a_true.isUnsigned || a_false.isUnsigned;
+  if (mask.needRecrypt(a_true,a_false)) {
   // if we need to handle preemptive recrypt, do the copy now
-  if (a_true.needRecrypt(a_false)) {
     SHEInt r_true(a_true), r_false(a_false);
-    r_true.verifyArgs(r_false);
+    mask.verifyArgs(r_true, r_false);
+    mask.reset(std::max(a_true.bitSize,a_false.bitSize), false);
+    mask.isUnsigned = a_true.isUnsigned || a_false.isUnsigned;
     return (mask&r_true) ^ ((~mask)&r_false);
   }
+  mask.reset(std::max(a_true.bitSize,a_false.bitSize), false);
+  mask.isUnsigned = a_true.isUnsigned || a_false.isUnsigned;
   return (mask&a_true) ^ ((~mask)&a_false);
 }
 

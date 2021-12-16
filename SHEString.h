@@ -587,6 +587,21 @@ public:
   void verifyArgs(SHEString &a, long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
   void reCrypt(void);
   void reCrypt(SHEString &a);
+  // allow vectors of strings. Note: reCrypt (SHEString &a) is already
+  // maximally packed
+  void reCrypt(SHEString &a, SHEString &b) {
+    reCrypt(a); b.reCrypt();
+  }
+  void reCrypt(SHEString &a, SHEString &b, SHEString &c) {
+    reCrypt(a); b.reCrypt(c);
+  }
+  void reCrypt(SHEString &a, SHEString &b, SHEString &c, SHEString &d) {
+    reCrypt(a); b.reCrypt(c); d.reCrypt();
+  }
+  void reCrypt(SHEString &a, SHEString &b, SHEString &c, SHEString &d,
+               SHEString &e) {
+    reCrypt(a); b.reCrypt(c); d.reCrypt(e);
+  }
 
 #ifdef DEBUG
   static void setDebugPrivateKey(SHEPrivateKey &privKey)

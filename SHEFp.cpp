@@ -309,16 +309,13 @@ bool SHEFp::needRecrypt(const SHEFp &a, long level) const
 /* maybe we should do a 6 var packed recrypt here? */
 void SHEFp::reCrypt(SHEFp &a, bool force)
 {
-  sign.reCrypt(a.sign, force);
-  exp.reCrypt(a.exp, force);
-  mantissa.reCrypt(a.mantissa, force);
+  sign.reCrypt(exp, mantissa, a.sign, a.exp, a.mantissa, force);
 }
 
 /* maybe we should do a 3 var packed recrypt here? */
 void SHEFp::reCrypt(bool force)
 {
-  exp.reCrypt(mantissa, force);
-  sign.reCrypt(force);
+  sign.reCrypt(exp, mantissa, force);
 }
 
 
@@ -344,7 +341,7 @@ void SHEFp::normalize(void)
   SHEBool lbreak(shift,false);
   SHEBool saveSpecial = isSpecial();
 
-  // calculate how for to shift the mantissa. we are looking
+  // calculate how much to shift the mantissa. we are looking
   // for the first '1' bit in the mantissa
   for (int i=0; i < mantissa.getSize(); i++) {
     lbreak = lbreak.select(lbreak, mantissa.getBitHigh(i));
@@ -360,7 +357,7 @@ void SHEFp::normalize(void)
   // shift has just come down off a chain of operations and may have
   // diminished capacity, which we will bring into the expensive
   // >> operator
-  shift.verifyArgs(2*SHEINT_DEFAULT_LEVEL_TRIGGER);
+  shift.verifyArgs(exp, mantissa, 2*SHEINT_DEFAULT_LEVEL_TRIGGER);
   mantissa = mantissa << shift;
   exp -= shift;
   exp = mantissa.isZero().select(0,exp);

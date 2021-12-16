@@ -234,6 +234,23 @@ public:
   void verifyArgs(SHEFp &a, long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
   void reCrypt(bool force=false);
   void reCrypt(SHEFp &a, bool force=false);
+  // these are only used by SHEVector.h, which uses the larger calls
+  // to do packed recrypts, but FP's are already packing up to 6 SHEints
+  // already, so just decompose the requests back into single and dual
+  // fp recrypts.
+  void reCrypt(SHEFp &a, SHEFp &b, bool force=false) {
+    reCrypt(a, force), b.reCrypt(force);
+  }
+  void reCrypt(SHEFp &a, SHEFp &b, SHEFp &c, bool force=false) {
+    reCrypt(a, force); b.reCrypt(c, force);
+  }
+  void reCrypt(SHEFp &a, SHEFp &b, SHEFp &c, SHEFp &d, bool force=false) {
+    reCrypt(a, force); b.reCrypt(c, force); d.reCrypt(force);
+  }
+  void reCrypt(SHEFp &a, SHEFp &b, SHEFp &c, SHEFp &d, SHEFp &e,
+               bool force=false) {
+    reCrypt(a, force); b.reCrypt(c, force); d.reCrypt(e, force);
+  }
 
 #ifdef DEBUG
   static void setDebugPrivateKey(SHEPrivateKey &privKey)

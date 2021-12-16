@@ -12,23 +12,13 @@
      to improve log performance
    - better initial value for newton's methond for sqrt and cbrt.
    - replace simpson's integrals with better transcendentals (erf, erfc,
-     tgamma, lgamma, jn, yn).
+     tgamma, lgamma, j1, jn, y1, yn).
    - replace taylor polynomials with Chebychev polynomials.
    - create non-normalized versions of addition and multiplication for use
      in SHEMath.h, then normalize at the end.
-   - Create 3, 4, 5, and 6 variable versions of needRecrypt, verifyArgs, and
-     reCrypt.
    - handle more unencrypted length/pos cases in SHEString.cpp rather than
      punting and encrypting those length/pos values.
-   - replace simpson integrals with trancendental functions for lgamma, tgamma, j1, jn, y1, yn
-   - can we speed up udiv?
-- Add Vector operations
-   - use slots in SHEInt to intialize it with a vector.
-   - disable packed recrypt when using vectors. (Question does the underlying
-     binArithmn (in HElib) add/multiply use packed slots as well?)
-   - export SHEInt as vectors.
-   - Add vector support to SHEFp (same plan as SHEInt)
-   - Add vector support to SHEString
+   - can we speed up udiv with parallel operations?
 - Create detailed documentation on each function
 - Complete the GenericContext code
 - Add Support for non-binary BGV contexts

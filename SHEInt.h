@@ -11,6 +11,10 @@
 #include "SHEUtil.h"
 
 typedef struct  {
+  uint64_t sextupleRecrypt;
+  uint64_t quintupleRecrypt;
+  uint64_t quadrupleRecrypt;
+  uint64_t tripleRecrypt;
   uint64_t doubleRecrypt;
   uint64_t recrypt;
   uint64_t bitRecrypt;
@@ -20,8 +24,29 @@ typedef struct  {
 inline std::ostream &operator<<(std::ostream &str,
                                 const SHERecryptCounters &ctr)
 {
-  str << "<double=" << ctr.doubleRecrypt << ",single=" << ctr.recrypt
-      << ",bit=" << ctr.bitRecrypt << ",total=" << ctr.total << ">";
+  str << "<";
+  if (ctr.sextupleRecrypt) {
+    str << "sextuple=" << ctr.sextupleRecrypt << ",";
+  }
+  if (ctr.quintupleRecrypt) {
+    str << "quintuple=" << ctr.quintupleRecrypt << ",";
+  }
+  if (ctr.quadrupleRecrypt) {
+    str << "quadruple=" << ctr.quadrupleRecrypt << ",";
+  }
+  if (ctr.tripleRecrypt) {
+    str << "triple=" << ctr.tripleRecrypt << ",";
+  }
+  if (ctr.doubleRecrypt) {
+    str << "double=" << ctr.doubleRecrypt << ",";
+  }
+  if (ctr.recrypt) {
+    str << "single=" << ctr.recrypt << ",";
+  }
+  if (ctr.bitRecrypt) {
+    str << "bit=" << ctr.bitRecrypt << ",";
+  }
+  str << "total=" << ctr.total << ">";
   return str;
 }
 
@@ -110,12 +135,28 @@ private:
     labelHash[this]=labelBuf;
     return labelBuf;
   }
-  void reCryptCounter(void) const {
-    recryptCounters.recrypt++;
+  void reCryptSextupleCounter(void) const {
+    recryptCounters.sextupleRecrypt++;
+    recryptCounters.total++;
+  }
+  void reCryptQuintupleCounter(void) const {
+    recryptCounters.quintupleRecrypt++;
+    recryptCounters.total++;
+  }
+  void reCryptQuadrupleCounter(void) const {
+    recryptCounters.quadrupleRecrypt++;
+    recryptCounters.total++;
+  }
+  void reCryptTripleCounter(void) const {
+    recryptCounters.tripleRecrypt++;
     recryptCounters.total++;
   }
   void reCryptDoubleCounter(void) const {
     recryptCounters.doubleRecrypt++;
+    recryptCounters.total++;
+  }
+  void reCryptCounter(void) const {
+    recryptCounters.recrypt++;
     recryptCounters.total++;
   }
   void reCryptBitCounter(void) const {
@@ -338,10 +379,34 @@ public:
   bool needRecrypt(long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const;
   bool needRecrypt(const SHEInt &a,
                    long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const;
+  // we use these higher levels for udiv and SHEFp
+  bool needRecrypt(const SHEInt &a, const SHEInt &b,
+                   long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const;
+  bool needRecrypt(const SHEInt &a, const SHEInt &b, const SHEInt &c,
+                   long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const;
+  bool needRecrypt(const SHEInt &a, const SHEInt &b, const SHEInt &c,
+                   const SHEInt &d, long level=SHEINT_DEFAULT_LEVEL_TRIGGER)
+                   const;
+  bool needRecrypt(const SHEInt &a, const SHEInt &b, const SHEInt &c,
+                   const SHEInt &d, const SHEInt &e,
+                   long level=SHEINT_DEFAULT_LEVEL_TRIGGER) const;
   void verifyArgs(long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
   void verifyArgs(SHEInt &a, long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
+  void verifyArgs(SHEInt &a, SHEInt &b,
+                  long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
+  void verifyArgs(SHEInt &a, SHEInt &b, SHEInt &c,
+                  long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
+  void verifyArgs(SHEInt &a, SHEInt &b, SHEInt &c, SHEInt &d,
+                  long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
+  void verifyArgs(SHEInt &a, SHEInt &b, SHEInt &c, SHEInt &d, SHEInt &e,
+                  long level=SHEINT_DEFAULT_LEVEL_TRIGGER);
   void reCrypt(bool force=false);
   void reCrypt(SHEInt &a, bool force=false);
+  void reCrypt(SHEInt &a, SHEInt &b, bool force=false);
+  void reCrypt(SHEInt &a, SHEInt &b, SHEInt &c, bool force=false);
+  void reCrypt(SHEInt &a, SHEInt &b, SHEInt &c, SHEInt &d, bool force=false);
+  void reCrypt(SHEInt &a, SHEInt &b, SHEInt &c, SHEInt &d, SHEInt &e,
+               bool force=false);
   static SHERecryptCounters getRecryptCounters(void)
           { return recryptCounters; }
   static void resetRecryptCounters(void)  { recryptCounters = { 0 }; }

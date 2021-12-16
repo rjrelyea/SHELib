@@ -12,8 +12,8 @@
 #include "SHEMagic.h"
 #include "helibio.h"
 
-// T can be any class that is a target or source of a select(SHEInt, T, T)
-// and has a void T::clear(void) method.
+// T can be any class that is a target or source of a select(SHEInt, T, T),
+// a void T::clear(void), and a full set of reCrypt methods.
 // function (SHEInt and subclasses, SHEString and subclasses, SHEFp and
 // subclasses, etc.)
 template<class T>
@@ -91,7 +91,7 @@ public:
     std::vector<T> &narrow = *this;
     narrow.resize(n, val);
   }
-  
+
   // to decrypt, we would need to add the unencrypted type to the template
   long bitCapacity(void) const
   {
@@ -129,11 +129,31 @@ public:
   void reCrypt(void)
   {
     std::vector<T> &narrow = *this;
-    for (int i=1; i < narrow.size(); i+=2) {
-      narrow[i].reCrypt(narrow[i-1]);
+    int i;
+    // lump together up to 6 elements to take advantage of
+    // packed recrypt.
+    for (int i=5; i < narrow.size(); i+=6) {
+      narrow[i].reCrypt(narrow[i-1],narrow[i-2],narrow[i-3],
+                        narrow[i-4],narrow[i-5]);
     }
-    if (narrow.size() & 1) {
-      narrow.back().reCrypt();
+    switch (i - narrow.size()) {
+    case 5:
+      narrow[i].reCrypt(narrow[i-4], narrow[i-3], narrow[i-2], narrow[i-1]);
+      break;
+    case 4:
+      narrow[i].reCrypt(narrow[i-3], narrow[i-2], narrow[i-1]);
+      break;
+    case 3:
+      narrow[i].reCrypt(narrow[i-2], narrow[i-1]);
+      break;
+    case 2:
+      narrow[i].reCrypt(narrow[i-1]);
+      break;
+    case 1:
+      narrow[i].reCrypt();
+      break;
+    case 0:
+      break;
     }
   }
   void writeTo(std::ostream& str) const
