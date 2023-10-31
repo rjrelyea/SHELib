@@ -52,7 +52,7 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
    timer.stop();
    std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
-#ifndef SHE_SKIP_DIV
+//#ifndef SHE_SKIP_DIV
    std::cout << "  > a/b: " <<  std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();
@@ -60,9 +60,9 @@ do_timed_tests(SHEInt &a,SHEInt &b, SHEInt&r, SHEPrivateKey &privkey)
    timer.stop();
    std::cout << (PrintTime) timer.elapsedMilliseconds()  << " bootstraps="
              << SHEInt::getRecryptCounters() << std::endl;
-#else
-   std::cout << "  > a/b: " <<  "skipped" << std::endl;
-#endif
+//#else
+//   std::cout << "  > a/b: " <<  "skipped" << std::endl;
+//#endif
    std::cout << "  > a&b: " <<  std::flush;
    SHEInt::resetRecryptCounters();
    timer.start();

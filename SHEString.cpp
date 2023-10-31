@@ -739,8 +739,7 @@ void SHEString::reCrypt(void)
 
 void SHEString::reCrypt(SHEString &a)
 {
-  model.reCrypt(a.model);
-  eLen.reCrypt(a.eLen);
+  model.reCrypt(eLen, a.model, a.eLen);
   string.reCrypt();
   a.string.reCrypt();
 }
