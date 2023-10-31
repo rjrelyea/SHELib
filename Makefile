@@ -86,9 +86,9 @@ install-nodoc: ${LIB} ${PROG} ${BUILD}
 	install -c -m 0644 SHELib.pc ${DESTDIR}/${TARGET_LIB}/pkgconfig
 
 SHELib.pc: SHELib.pc.in
-	cat $< | sed -e "s,%%libdir%%,${TARGET_LIB},g" \
-                     -e "s,%%includedir%%,${TARGET_INCLUDE}/HELib,g" \
-                     -e "s,%%VERSION%%,${VERSION},g" \
+	cat $< | sed -e "s,%libdir%,${TARGET_LIB},g" \
+                     -e "s,%includedir%,${TARGET_INCLUDE}/HELib,g" \
+                     -e "s,%VERSION%,${VERSION},g" \
 	              > $@
 
 libSHELib.a: ${OBJS}

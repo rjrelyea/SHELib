@@ -67,6 +67,8 @@ make install-nodoc
 %{_libdir}/libSHELib.a
 %{_libdir}/pkgconfig/SHELib.pc
 %{_bindir}/SHETest
+%{_bindir}/SHEMathTest
+%{_bindir}/SHEStringTest
 %{_bindir}/SHEPerf
 %{_bindir}/SHEEval
 %{_includedir}/SHELib
