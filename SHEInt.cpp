@@ -2245,7 +2245,7 @@ int SHEInt::compareBestSize(int size) const
 
 SHEInt SHEInt::operator<(const SHEInt &a) const
 {
-  return (a > *this);
+  return (a != *this) && (a > *this);
 }
 
 // there are two ways to do this compare.
